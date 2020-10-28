@@ -20,6 +20,7 @@ class RTPSender(threading.Thread):
         self.client_addr = client_addr
         self.video_stream = video_stream
         self.is_playing = threading.Event()
+        self.closed = False
 
     def run(self):
         self.is_playing.set()
