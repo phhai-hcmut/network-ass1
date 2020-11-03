@@ -36,10 +36,11 @@ class RTPSender(threading.Thread):
             if data:
                 packet = self.make_rtp(data, self.video_stream.frame_num)
                 try:
+                    print('sending frame to client')
                     self.socket.sendto(packet, self.client_addr)
                 except socket.error as err:
                     logging.warn(err)
-                    # print("Connection Error")
+                    print("Connection Error")
             else:
                 # Reach end of stream
                 break

@@ -41,6 +41,7 @@ class RTSPClient:
 
         self.session_id = resp['Session']
         self.state = RTSPState.READY
+        print('Session id: ' ,self.session_id, 'State: ', self.state)
 
     def play(self):
         if self.state == RTSPState.INIT:
@@ -48,6 +49,7 @@ class RTSPClient:
         elif self.state == RTSPState.READY:
             self._request('PLAY')
             self.state = RTSPState.PLAYING
+        print('Session id: ' ,self.session_id, 'State: ', self.state)
 
     def pause(self):
         if self.state == RTSPState.INIT:
@@ -55,12 +57,15 @@ class RTSPClient:
         elif self.state == RTSPState.PLAYING:
             self._request('PAUSE')
             self.state = RTSPState.READY
+        print('Session id: ' ,self.session_id, 'State: ', self.state)
 
     def teardown(self):
         if self.state != RTSPState.INIT:
             self._request('TEARDOWN')
             self.session_id = None
             self.state = RTSPState.INIT
+        
+        print('Session id: ' ,self.session_id, 'State: ', self.state)
 
     def _request(self, method, headers=None):
         req_message = [
