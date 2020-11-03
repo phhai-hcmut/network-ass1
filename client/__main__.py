@@ -9,8 +9,8 @@ if __name__ == '__main__':
         sys.exit("Usage: python3 -m client <server_addr> <server_port> <rtp_port> <video_file>")
 
     server_addr = sys.argv[1]
-    server_port = sys.argv[2]
-    rtp_port = sys.argv[3]
+    server_port = int(sys.argv[2])
+    rtp_port = int(sys.argv[3])
     file_name = sys.argv[4]
 
     root = Tk()
