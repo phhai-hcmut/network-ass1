@@ -88,7 +88,7 @@ class ServerWorker(threading.Thread):
             filename = request[0].split(' ')[1]
 
             # Get the RTP/UDP port from the last line
-            self.rtp_port = request[2].split(' ')[3]
+            self.rtp_port = int(request[2].split(' ')[3])
 
             if self.video_stream is not None:
                 # Close old video_stream before open new one
@@ -117,7 +117,8 @@ class ServerWorker(threading.Thread):
         elif self.state == RTSPState.READY:
             if self.rtp_sender is None:
                 try:
-                    rtp_sender = RTPSender(self.client_addr, self.video_stream)
+                    rtp_addr = (self.client_addr[0], self.rtp_port)
+                    rtp_sender = RTPSender(rtp_addr, self.video_stream)
                 except socket.error:
                     pass
                 else:
