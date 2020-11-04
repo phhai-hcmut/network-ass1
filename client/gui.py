@@ -34,17 +34,17 @@ class Client(tk.Frame):
         play_button = tk.Button(
             self, text="Play", command=self.play, height=2, width=10
         )
-        play_button.grid(row=1, column=1)  # , padx=5, pady=10)
+        play_button.grid(row=1, column=1)
 
         pause_button = tk.Button(
             self, text="Pause", command=self.pause, height=2, width=10
         )
-        pause_button.grid(row=1, column=2)  # , padx=5,pady=10)
+        pause_button.grid(row=1, column=2)
 
         teardown_button = tk.Button(
             self, text="TearDown", command=self.teardown, height=2, width=10
         )
-        teardown_button.grid(row=1, column=3)  # , padx=5,pady=10)
+        teardown_button.grid(row=1, column=3)
 
     def setup(self):
         self.rtsp_client.setup(self.file_name, self.rtp_port)
@@ -54,7 +54,7 @@ class Client(tk.Frame):
         self.rtsp_client.play()
 
         while True:
-            video_data = self.rtp_recv.get_data()
+            video_data = self.rtp_recv.read()
             if video_data:
                 self.show_jpeg(video_data)
             else:

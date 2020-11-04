@@ -8,7 +8,7 @@ class RTPReceiver:
         self.socket.bind(('localhost', listen_port))
         self.socket.settimeout(timeout)
 
-    def get_data(self):
+    def read(self):
         """Return data of a RTP packet."""
         # UDP is a message-based protocol, so each time we call recvfrom(),
         # we get the whole packet. It is important to set the buffer large enough

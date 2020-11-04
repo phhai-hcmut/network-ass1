@@ -32,7 +32,7 @@ class RTPSender(threading.Thread):
                 self.socket.close()
                 return
 
-            data = self.video_stream.get_next_frame()
+            data = self.video_stream.read()
             if data:
                 packet = self.make_rtp(data, self.video_stream.frame_num)
                 try:

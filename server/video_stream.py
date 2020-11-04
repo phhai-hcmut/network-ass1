@@ -5,7 +5,7 @@ class VideoStream:
         self.frame_num = 0
         self.frame_rate = 20
 
-    def get_next_frame(self):
+    def read(self):
         # Get the framelength from the first 5 bits
         data = self.file.read(5)
         if data:
