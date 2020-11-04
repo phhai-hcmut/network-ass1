@@ -17,30 +17,30 @@ class Client(tkinter.Frame):
     
     def initGUI(self):
         root = self.master
-        root.geometry("400x400")
+        root.geometry("400x380")
         frame = Frame(root)
         frame.pack()
 
 
         upper_frame = Frame(root)
         upper_frame.pack(side=TOP)
-        bottom_frame = Frame(root)
+        bottom_frame = Frame(root,height=30)
         bottom_frame.pack(side=BOTTOM)
 
-        img = ImageTk.PhotoImage(Image.new("RGB", (300,300), "gray")) #Image.open('test_img.jpg')
-        panel  = Label(upper_frame, width=350,height=350, image = img)
+        img = ImageTk.PhotoImage(Image.new("RGB", (250,300), "gray")) #Image.open('test_img.jpg')
+        panel  = Label(upper_frame, width=400,height=300, image = img)
         panel.pack(side = "bottom", expand = "no",padx=5,pady=5)
         self.image_frame = panel
         root.update()
 
 
-        setup_button = Button(bottom_frame,text='Setup',command=self.setup)
-        setup_button.pack(padx=5,pady=10,side=LEFT)
-        play_button = Button(bottom_frame,text='Play',command=self.play)
+        setup_button = Button(bottom_frame,text='Setup',command=self.setup,height = 2, width = 10)
+        setup_button.pack(padx=5,pady=10,side=LEFT) 
+        play_button = Button(bottom_frame,text='Play',command=self.play,height = 2, width = 10)
         play_button.pack(padx=5,pady=10,side=LEFT)
-        pause_button = Button(bottom_frame,text='Pause',command=self.pause)
+        pause_button = Button(bottom_frame,text='Pause',command=self.pause,height = 2, width = 10)
         pause_button.pack(padx=5,pady=10,side=LEFT)
-        teardown_button = Button(bottom_frame, text='TearDown',command=self.teardown)
+        teardown_button = Button(bottom_frame, text='TearDown',command=self.teardown,height = 2, width = 10)
         teardown_button.pack(padx=5,pady=10,side=LEFT)
 
     def setup(self):
@@ -51,23 +51,25 @@ class Client(tkinter.Frame):
     def play(self):
         self.rtsp_client.play()
 
-        video_data = self.rtp_recv.get_data()
-        print('Data:', video_data[0:15])
-        while video_data != '':
-            print('received vid data')
-            self.show_jpeg(video_data)
+        while True:
+            video_data = self.rtp_recv.get_data()
+            if video_data == '': break
+            else: self.show_jpeg(video_data)
     def pause(self):
         self.rtsp_client.pause()
+        #when this happens the client socket will just timeout and stop, no big deal.
+
     def teardown(self):
         self.rtsp_client.teardown()
+        self.master.destroy()
 
     def show_jpeg(self, video_data):
-        print('printin')
         im = Image.open(BytesIO(video_data))
         image = ImageTk.PhotoImage(im)
         self.image_frame.configure(image=image)
         self.image_frame.image = image
         self.master.update()
+        
 
         
 
