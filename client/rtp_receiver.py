@@ -13,9 +13,7 @@ class RTPReceiver:
         # UDP is a message-based protocal, so each time we call recvfrom(),
         # we get the whole packet. It is important to set the buffer large enough
         # to store all the content of the packet
-        print('waiting data')
-        packet, _ = self.socket.recvfrom(1 << 5)
-        print('Received data')
+        packet, _ = self.socket.recvfrom(1<<15)
         # Skip header
         return packet[12:]
 
