@@ -1,75 +1,81 @@
-from io import BytesIO
-from tkinter import *
-import tkinter
-from PIL import Image,ImageTk
+import logging
+import tkinter as tk
+
+from PIL import ImageTk, Image
+
 from .rtsp_client import RTSPClient
 from .rtp_receiver import RTPReceiver
 
 
-class Client(tkinter.Frame):
+class Client(tk.Frame):
     """GUI interface for RTSP client"""
-    def __init__(self, master, server_addr, server_port, rtp_port, file_name):
-        self.master = master
+
+    def __init__(self, server_addr, server_port, rtp_port, file_name):
+        super().__init__()
+        self.master.protocol('WM_DELETE_WINDOW', self.on_exit)
         self.rtsp_client = RTSPClient((server_addr, server_port))
         self.rtp_port = rtp_port
         self.file_name = file_name
-        self.initGUI()
-    
-    def initGUI(self):
-        root = self.master
-        root.geometry("400x380")
-        frame = Frame(root)
-        frame.pack()
+        self.rtp_recv = None
+        self.create_widgets()
 
+    def create_widgets(self):
+        # self.master.geometry("400x380")
+        self.pack()
+        placeholer_img = ImageTk.BitmapImage(Image.new('1', (384, 288)))
+        self.image_frame = tk.Label(self, image=placeholer_img)
+        self.image_frame.grid(row=0, column=0, columnspan=4)
 
-        upper_frame = Frame(root)
-        upper_frame.pack(side=TOP)
-        bottom_frame = Frame(root,height=30)
-        bottom_frame.pack(side=BOTTOM)
+        setup_button = tk.Button(
+            self, text="Setup", command=self.setup, height=2, width=10
+        )
+        setup_button.grid(row=1, column=0)
 
-        img = ImageTk.PhotoImage(Image.new("RGB", (250,300), "gray")) #Image.open('test_img.jpg')
-        panel  = Label(upper_frame, width=400,height=300, image = img)
-        panel.pack(side = "bottom", expand = "no",padx=5,pady=5)
-        self.image_frame = panel
-        root.update()
+        play_button = tk.Button(
+            self, text="Play", command=self.play, height=2, width=10
+        )
+        play_button.grid(row=1, column=1)  # , padx=5, pady=10)
 
+        pause_button = tk.Button(
+            self, text="Pause", command=self.pause, height=2, width=10
+        )
+        pause_button.grid(row=1, column=2)  # , padx=5,pady=10)
 
-        setup_button = Button(bottom_frame,text='Setup',command=self.setup,height = 2, width = 10)
-        setup_button.pack(padx=5,pady=10,side=LEFT) 
-        play_button = Button(bottom_frame,text='Play',command=self.play,height = 2, width = 10)
-        play_button.pack(padx=5,pady=10,side=LEFT)
-        pause_button = Button(bottom_frame,text='Pause',command=self.pause,height = 2, width = 10)
-        pause_button.pack(padx=5,pady=10,side=LEFT)
-        teardown_button = Button(bottom_frame, text='TearDown',command=self.teardown,height = 2, width = 10)
-        teardown_button.pack(padx=5,pady=10,side=LEFT)
+        teardown_button = tk.Button(
+            self, text="TearDown", command=self.teardown, height=2, width=10
+        )
+        teardown_button.grid(row=1, column=3)  # , padx=5,pady=10)
 
     def setup(self):
-        self.rtsp_client.setup(self.file_name,self.rtp_port)
+        self.rtsp_client.setup(self.file_name, self.rtp_port)
         self.rtp_recv = RTPReceiver(self.rtp_port)
-        pass
 
     def play(self):
         self.rtsp_client.play()
 
         while True:
             video_data = self.rtp_recv.get_data()
-            if video_data == '': break
-            else: self.show_jpeg(video_data)
+            if video_data:
+                self.show_jpeg(video_data)
+            else:
+                break
+
     def pause(self):
         self.rtsp_client.pause()
-        #when this happens the client socket will just timeout and stop, no big deal.
+        # when this happens the client socket will just timeout and stop, no big deal.
 
     def teardown(self):
         self.rtsp_client.teardown()
-        self.master.destroy()
+        self.on_exit()
 
     def show_jpeg(self, video_data):
-        im = Image.open(BytesIO(video_data))
-        image = ImageTk.PhotoImage(im)
+        image = ImageTk.PhotoImage(data=video_data)
         self.image_frame.configure(image=image)
-        self.image_frame.image = image
-        self.master.update()
-        
+        self.image_frame.update()
 
-        
-
+    def on_exit(self):
+        logging.info("Cleaning resources before exiting application...")
+        self.rtsp_client.close()
+        if self.rtp_recv is not None:
+            self.rtp_recv.close()
+        self.master.destroy()

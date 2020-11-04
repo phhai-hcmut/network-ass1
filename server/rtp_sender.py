@@ -78,7 +78,7 @@ class RTPPacket:
     def encode(self, version, padding, extension, cc, seqnum, marker, pt, ssrc, payload):
         # Get timestamp in microsecond
         timestamp = round(time.monotonic() * 1000)
-        headers = bytearray([
+        headers = bytes([
             version << 6 | padding << 5 | extension << 4 | cc,
             marker << 7 | pt,
             (seqnum >> 8) & 0xFF,
