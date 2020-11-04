@@ -23,7 +23,7 @@ def start_server(listen_port, listen_addr='', max_clients=None):
         worker_count.acquire()
         # Receive client info (address, port) through RTSP/TCP session
         worker_sock, client_addr_info = rtsp_socket.accept()
-        logging.info(f"Accept new connection from {client_addr_info}")
+        logging.info("Accept new connection from %s:%d", *client_addr_info)
         server_worker = ServerWorker(worker_sock, client_addr_info)
         server_worker.start()
         # executor.submit(server_worker.run)
@@ -63,7 +63,7 @@ class ServerWorker(threading.Thread):
                 # The client has closed connection
                 break
         worker_count.release()
-        logging.info(f"Client {self.client_addr} disconnected")
+        logging.info("Client %s:%d disconnected", *self.client_addr)
 
     def process_rtsp_request(self, data):
         """Process RTSP request sent from the client."""

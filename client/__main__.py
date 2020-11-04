@@ -1,3 +1,4 @@
+import logging
 import sys
 from tkinter import Tk
 
@@ -13,6 +14,8 @@ if __name__ == '__main__':
     rtp_port = int(sys.argv[3])
     file_name = sys.argv[4]
 
+    logging_format = "{asctime}:{levelname}:{message}"
+    logging.basicConfig(level=logging.DEBUG, format=logging_format, style='{')
     root = Tk()
 
     # Create a new client

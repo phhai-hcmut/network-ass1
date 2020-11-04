@@ -13,11 +13,11 @@ class RTPSender(threading.Thread):
     PT = 26  # MJPEG type
     SSRC = 0
 
-    def __init__(self, client_addr, video_stream):
+    def __init__(self, recv_addr, video_stream):
         super().__init__()
         # Create a new socket for RTP/UDP
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.client_addr = client_addr
+        self.recv_addr = recv_addr
         self.video_stream = video_stream
         self.is_playing = threading.Event()
         self.closed = False
@@ -36,8 +36,11 @@ class RTPSender(threading.Thread):
             if data:
                 packet = self.make_rtp(data, self.video_stream.frame_num)
                 try:
-                    print('Sending frame #',self.video_stream.frame_num, ', size: ',len(packet))
-                    self.socket.sendto(packet, self.client_addr)
+                    logging.debug(
+                        "Send frame #%d of %d bytes to %s:%d",
+                        self.video_stream.frame_num, len(packet), *self.recv_addr
+                    )
+                    self.socket.sendto(packet, self.recv_addr)
                 except socket.error as err:
                     logging.warn(err)
                     print("Connection Error")
