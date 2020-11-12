@@ -4,6 +4,9 @@ import time
 import socket
 
 
+MJPEG_TYPE = 26
+
+
 class RTPSender(threading.Thread):
     VERSION = 2
     PADDING = 0
@@ -60,9 +63,7 @@ class RTPSender(threading.Thread):
         seqnum = framenum
         ssrc = 0
 
-        rtp_packet = RTPPacket()
-        rtp_packet.encode(version, padding, extension, cc, seqnum, marker, pt, ssrc, payload)
-        return rtp_packet.get_packet()
+        return self.encode_rtp_packet(version, padding, extension, cc, seqnum, marker, pt, ssrc, payload)
 
     def play(self):
         self.is_playing.set()
@@ -70,12 +71,8 @@ class RTPSender(threading.Thread):
     def pause(self):
         self.is_playing.clear()
 
-    def close(self):
-        self.closed = True
-
-
-class RTPPacket:
-    def encode(self, version, padding, extension, cc, seqnum, marker, pt, ssrc, payload):
+    @staticmethod
+    def encode_rtp_packet(version, padding, extension, cc, seqnum, marker, pt, ssrc, payload):
         # Get timestamp in microsecond
         timestamp = round(time.monotonic() * 1000)
         headers = bytes([
@@ -92,7 +89,7 @@ class RTPPacket:
             (ssrc >> 8) & 0xFF,
             ssrc & 0xFF,
         ])
-        self.packet = headers + payload
+        return headers + payload
 
-    def get_packet(self):
-        return self.packet
+    def close(self):
+        self.closed = True

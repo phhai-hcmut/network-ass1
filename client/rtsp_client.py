@@ -1,4 +1,5 @@
 from enum import Enum
+import logging
 import socket
 
 
@@ -31,43 +32,53 @@ class RTSPClient:
         self.socket.connect(server_addr)
 
         self.state = RTSPState.INIT
-        self.seq_num = 1
+        self.seq_num = 0
         self.session_id = None
+
+    def describe(self, file_name):
+        self.file_name = file_name
+        header = 'Accept: application/sdp'
+        _, msg = self._request('DESCRIBE', header)
+        self.file_name = None
+        return msg
 
     def setup(self, file_name, rtp_port):
         self.file_name = file_name
         header = f'Transport: RTP/UDP; client_port= {rtp_port}'
-        resp = self._request('SETUP', header)
+        resp_headers, _ = self._request('SETUP', header)
 
-        self.session_id = resp['Session']
+        self.session_id = resp_headers['Session']
         self.state = RTSPState.READY
-        print('Session id: ' ,self.session_id, 'State: ', self.state)
+        logging.info("RTSP client in state %s", self.state)
 
     def play(self):
         if self.state == RTSPState.INIT:
             raise InvalidMethodError(self.state, 'PLAY')
         elif self.state == RTSPState.READY:
-            self._request('PLAY')
-            self.state = RTSPState.PLAYING
-        print('Session id: ' ,self.session_id, 'State: ', self.state)
+            resp = self._request('PLAY')[0]
+            if int(resp['CSeq']) == self.seq_num and resp['Session'] == self.session_id:
+                self.state = RTSPState.PLAYING
+        logging.info("RTSP client in state %s", self.state)
 
     def pause(self):
         if self.state == RTSPState.INIT:
             raise InvalidMethodError(self.state, 'PLAY')
         elif self.state == RTSPState.PLAYING:
-            self._request('PAUSE')
-            self.state = RTSPState.READY
-        print('Session id: ' ,self.session_id, 'State: ', self.state)
+            resp = self._request('PAUSE')[0]
+            if int(resp['CSeq']) == self.seq_num and resp['Session'] == self.session_id:
+                self.state = RTSPState.READY
+        logging.info("RTSP client in state %s", self.state)
 
     def teardown(self):
         if self.state != RTSPState.INIT:
-            self._request('TEARDOWN')
-            self.session_id = None
-            self.state = RTSPState.INIT
-        
-        print('Session id: ' ,self.session_id, 'State: ', self.state)
+            resp = self._request('TEARDOWN')[0]
+            if int(resp['CSeq']) == self.seq_num and resp['Session'] == self.session_id:
+                self.session_id = None
+                self.state = RTSPState.INIT
+        logging.info("RTSP client in state %s", self.state)
 
     def _request(self, method, headers=None):
+        self.seq_num += 1
         req_message = [
             # Request line
             f'{method} {self.file_name} {self.RTSP_VERSION}',
@@ -75,7 +86,7 @@ class RTSPClient:
             f'CSeq: {self.seq_num}',
         ]
 
-        if method == 'SETUP':
+        if method in ['SETUP', 'DESCRIBE']:
             req_message.append(headers)
         else:
             req_message.append(f'Session: {self.session_id}')
@@ -83,7 +94,6 @@ class RTSPClient:
         req_message = '\n'.join(req_message).encode()
 
         resp_message = self._send(req_message)
-        self.seq_num += 1
         return self._process_response(resp_message)
 
     def _send(self, req_message):
@@ -103,12 +113,22 @@ class RTSPClient:
         if status_code != 200:
             raise RTSPError(" ".join(status_line[1:]))
 
+        if '' in resp:
+            # The response contains body
+            body_idx = resp.index('') + 1
+            headers = resp[1:body_idx - 1]
+            body = resp[body_idx:]
+        else:
+            headers = resp[1:]
+            body = None
+
         def make_header(line):
             header_line = line.split(' ')
             header_name = header_line[0].strip(':')
             return (header_name, ' '.join(header_line[1:]))
-        headers = dict([make_header(line) for line in resp[1:]])
-        return headers
+        headers = dict([make_header(line) for line in headers])
+        logging.info("Receive %s", headers)
+        return headers, body
 
     def close(self):
         self.socket.close()

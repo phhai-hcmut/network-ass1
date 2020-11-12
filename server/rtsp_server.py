@@ -1,10 +1,11 @@
 from enum import Enum
 import logging
+import os.path
 from random import randint
 import socket
 import threading
 
-from .rtp_sender import RTPSender
+from .rtp_sender import RTPSender, MJPEG_TYPE
 from .video_stream import VideoStream
 
 
@@ -58,7 +59,7 @@ class ServerWorker(threading.Thread):
             data = self.socket.recv(1024)
             if data:
                 logging.info("Data received:\n" + data.decode())
-                self.process_rtsp_request(data.decode())
+                self.process_rtsp_request(data)
             else:
                 # The client has closed connection
                 break
@@ -68,7 +69,7 @@ class ServerWorker(threading.Thread):
     def process_rtsp_request(self, data):
         """Process RTSP request sent from the client."""
         # Get the request type
-        request = data.splitlines()
+        request = data.decode().splitlines()
         status_line = request[0].split(' ')
         request_method = status_line[0]
 
@@ -76,6 +77,33 @@ class ServerWorker(threading.Thread):
         self.seqnum = request[1].split(' ')[1]
 
         getattr(self, 'process_' + request_method.lower() + '_request')(request)
+
+    def process_describe_request(self, request):
+        logging.info("Processing DESCRIBE request")
+        filename = request[0].split(' ')[1]
+        if not os.path.exists(filename):
+            self.reply_rtsp(RTSPResponse.FILE_NOT_FOUND)
+            return
+
+        body = '\n'.join([
+            'v=0',
+            'o=- {0} {0} IN IP4 {1}'.format(
+                self._make_ntp_timestamp(), self.client_addr[0]
+            ),
+            's=RTSP Session',
+            f'm=video 0 RTP/AVP {MJPEG_TYPE}',
+            'a=framerate:20',
+            'a=mimetype:string;"video/MJPEG"',
+        ]).encode()
+        headers = 'Content-Type: application/sdp'
+        self.reply_rtsp(RTSPResponse.OK, headers, body)
+
+    @staticmethod
+    def _make_ntp_timestamp():
+        from datetime import datetime
+        diff = datetime.utcnow() - datetime(1900, 1, 1, 0, 0, 0)
+        timestamp = diff.days * 24 * 60 * 60 + diff.seconds
+        return timestamp
 
     def process_setup_request(self, request):
         logging.info("Processing SETUP request")
@@ -161,7 +189,7 @@ class ServerWorker(threading.Thread):
         self.reply_rtsp(RTSPResponse.OK)
         self.state = RTSPState.INIT
 
-    def reply_rtsp(self, resp):
+    def reply_rtsp(self, resp, headers=None, body=None):
         """Send RTSP reply to the client."""
         resp = resp.value
         reply = [
@@ -169,6 +197,11 @@ class ServerWorker(threading.Thread):
             f'CSeq: {self.seqnum}',
             f'Session: {self.session_id}',
         ]
+
+        if headers:
+            reply.append(headers)
         resp_msg = '\n'.join(reply).encode()
+        if body:
+            resp_msg += f'\nContent-Length: {len(body)}\n\n'.encode() + body
         sent_msg = self.socket.send(resp_msg)
         logging.info(f"Sent {sent_msg} out of {len(resp_msg)} bytes")

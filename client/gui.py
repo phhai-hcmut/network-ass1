@@ -1,18 +1,25 @@
 import logging
 import tkinter as tk
+import tkinter.messagebox
 
 from PIL import ImageTk, Image
 
-from .rtsp_client import RTSPClient
+from .rtsp_client import RTSPClient, RTSPState
 from .rtp_receiver import RTPReceiver
 
 
 class Client(tk.Frame):
     """GUI interface for RTSP client"""
+    CONTROL_BUTTONS = ["Describe", "Set up", "Play", "Pause", "Tear down"]
 
-    def __init__(self, server_addr, server_port, rtp_port, file_name):
+    def __init__(self, master=None, *, server_addr, server_port, rtp_port, file_name):
         super().__init__()
-        self.master.protocol('WM_DELETE_WINDOW', self.on_exit)
+        if master is None:
+            # master is toplevel widget (tk.Tk)
+            self.master.protocol('WM_DELETE_WINDOW', self.on_closing)
+            self.pack()
+        else:
+            self.bind('<Destroy>', self.on_closing)
         self.rtsp_client = RTSPClient((server_addr, server_port))
         self.rtp_port = rtp_port
         self.file_name = file_name
@@ -20,31 +27,26 @@ class Client(tk.Frame):
         self.create_widgets()
 
     def create_widgets(self):
-        # self.master.geometry("400x380")
-        self.pack()
         placeholer_img = ImageTk.BitmapImage(Image.new('1', (384, 288)))
         self.image_frame = tk.Label(self, image=placeholer_img)
-        self.image_frame.grid(row=0, column=0, columnspan=4)
+        self.image_frame.grid(row=0, column=0, columnspan=len(self.CONTROL_BUTTONS))
 
-        setup_button = tk.Button(
-            self, text="Setup", command=self.setup, height=2, width=10
-        )
-        setup_button.grid(row=1, column=0)
+        for i, btn_text in enumerate(self.CONTROL_BUTTONS):
+            method = btn_text.replace(" ", '').lower()
+            button = tk.Button(
+                self, text=btn_text, command=getattr(self, method),
+                height=2, width=10
+            )
+            button.grid(row=1, column=i)
 
-        play_button = tk.Button(
-            self, text="Play", command=self.play, height=2, width=10
-        )
-        play_button.grid(row=1, column=1)
-
-        pause_button = tk.Button(
-            self, text="Pause", command=self.pause, height=2, width=10
-        )
-        pause_button.grid(row=1, column=2)
-
-        teardown_button = tk.Button(
-            self, text="TearDown", command=self.teardown, height=2, width=10
-        )
-        teardown_button.grid(row=1, column=3)
+    def describe(self):
+        message = "\n".join(self.rtsp_client.describe(self.file_name))
+        if message:
+            describe_frame = tk.Label(
+                self, text=message, background='white',
+                justify='left'
+            )
+            describe_frame.grid(row=2, column=0, columnspan=len(self.CONTROL_BUTTONS))
 
     def setup(self):
         self.rtsp_client.setup(self.file_name, self.rtp_port)
@@ -62,20 +64,45 @@ class Client(tk.Frame):
 
     def pause(self):
         self.rtsp_client.pause()
-        # when this happens the client socket will just timeout and stop, no big deal.
 
     def teardown(self):
         self.rtsp_client.teardown()
-        self.on_exit()
+        self.on_closing()
 
     def show_jpeg(self, video_data):
         image = ImageTk.PhotoImage(data=video_data)
         self.image_frame.configure(image=image)
         self.image_frame.update()
 
-    def on_exit(self):
+    def on_closing(self, event=None):
+        if self.rtsp_client.state != RTSPState.INIT:
+            self.pause()
+            if tk.messagebox.askokcancel("Quit?", "Are you sure you want to quit?"):
+                self.cleanup()
+            else:
+                # Continue playing video
+                self.play()
+                return
+
+        if isinstance(self.master, tk.Tk):
+            self.master.destroy()
+        else:
+            self.destroy()
+
+    def cleanup(self):
         logging.info("Cleaning resources before exiting application...")
         self.rtsp_client.close()
         if self.rtp_recv is not None:
             self.rtp_recv.close()
-        self.master.destroy()
+
+
+class Client2(Client):
+    """More user-friendly GUI interface for RTSP client"""
+    CONTROL_BUTTONS = ["Play", "Pause", "Stop"]
+
+    def play(self):
+        super().setup()
+        super().play()
+
+    def stop(self):
+        super().teardown()
