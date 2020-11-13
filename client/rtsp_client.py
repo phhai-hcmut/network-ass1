@@ -50,6 +50,8 @@ class RTSPClient:
         return msg
 
     def setup(self, file_name, rtp_port):
+        if self.state != RTSPState.INIT:
+            raise InvalidMethodError(self.state, 'SETUP')
         self.file_name = file_name
         header = f'Transport: RTP/UDP; client_port= {rtp_port}'
         resp_headers, _ = self._request('SETUP', header)
@@ -74,7 +76,7 @@ class RTSPClient:
 
     def pause(self):
         if self.state == RTSPState.INIT:
-            raise InvalidMethodError(self.state, 'PLAY')
+            raise InvalidMethodError(self.state, 'PAUSE')
         elif self.state == RTSPState.PLAYING:
             resp = self._request('PAUSE')[0]
             if int(resp['CSeq']) == self.seq_num and resp['Session'] == self.session_id:
