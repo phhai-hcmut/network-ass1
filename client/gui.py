@@ -82,8 +82,8 @@ class Client(tk.Frame):
         self.rtsp_client.pause()
 
     def teardown(self):
-        self.rtsp_client.teardown()
-        self.on_closing()
+            self.on_closing() #confirm close and do the magic
+        
 
     def show_jpeg(self, video_data):
         image = ImageTk.PhotoImage(data=video_data)
@@ -107,15 +107,21 @@ class Client(tk.Frame):
         self.rtsp_client.play(self._current_progress)
 
     def on_closing(self, event=None):
-        if self.rtsp_client.state != RTSPState.INIT:
-            self.pause()
-            if tk.messagebox.askokcancel("Quit?", "Are you sure you want to quit?"):
-                self.cleanup()
-            else:
-                # Continue playing video
-                self.play()
-                return
+        is_playing = self.rtsp_client.state == RTSPState.PLAYING
+        if is_playing: self.pause()
 
+        if tk.messagebox.askokcancel("Quit?", "Are you sure you want to quit?"):
+            if self.rtsp_client.state != RTSPState.INIT:
+                self.rtsp_client.teardown()
+                self.cleanup()
+                self.kill_gui()
+            else:
+                self.kill_gui()
+        
+        if is_playing: self.play()
+            
+    
+    def kill_gui(self):
         if isinstance(self.master, tk.Tk):
             self.master.destroy()
         else:
