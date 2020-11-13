@@ -61,7 +61,7 @@ class RTSPClient:
     def play(self, begin=None, end=None):
         if self.state == RTSPState.INIT:
             raise InvalidMethodError(self.state, 'PLAY')
-        elif self.state == RTSPState.READY:
+        else:
             headers = None
             if begin:
                 headers = f'Range: npt={begin}-'
