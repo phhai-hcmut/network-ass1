@@ -89,6 +89,7 @@ class Client(tk.Frame):
         image = ImageTk.PhotoImage(data=video_data)
         self.image_frame.configure(image=image)
         # Keep a reference to the image object
+        self.image_frame.update()
         self.image_frame.image = image
         self._current_progress += 1 / FRAME_RATE
         # if self.is_playing:
