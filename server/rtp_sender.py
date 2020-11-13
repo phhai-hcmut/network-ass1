@@ -47,9 +47,10 @@ class RTPSender(threading.Thread):
                 except socket.error as err:
                     logging.warn(err)
                     print("Connection Error")
-            else:
-                # Reach end of stream
-                break
+            # else:
+            #     # Reach end of stream
+            #     self.pause()
+            #     continue
             time.sleep(1 / self.video_stream.frame_rate)
 
     def make_rtp(self, payload, framenum):
