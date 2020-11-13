@@ -7,6 +7,8 @@ from PIL import ImageTk, Image
 from .rtsp_client import RTSPClient, RTSPState
 from .rtp_receiver import RTPReceiver
 
+import time
+
 
 def _parse_npt(string):
     begin, end = string.removeprefix('npt=').split('-')
@@ -25,7 +27,7 @@ class Client(tk.Frame):
         super().__init__()
         if master is None:
             # master is toplevel widget (tk.Tk)
-            self.master.protocol('WM_DELETE_WINDOW', self.on_closing)
+            self.master.protocol('WM_DELETE_WINDOW', self.teardown)
             self.pack()
         else:
             self.bind('<Destroy>', self.on_closing)
@@ -68,8 +70,11 @@ class Client(tk.Frame):
         self.rtsp_client.setup(self.file_name, self.rtp_port)
         self.rtp_recv = RTPReceiver(self.rtp_port)
 
-    def play(self):
-        self.rtsp_client.play()
+    def play(self,jump = False):
+        if jump:
+            self.rtsp_client.play(self._current_progress)
+        else:
+            self.rtsp_client.play()
 
         while True:
             video_data = self.rtp_recv.read()
@@ -82,33 +87,9 @@ class Client(tk.Frame):
         self.rtsp_client.pause()
 
     def teardown(self):
-            self.on_closing() #confirm close and do the magic
-        
-
-    def show_jpeg(self, video_data):
-        image = ImageTk.PhotoImage(data=video_data)
-        self.image_frame.configure(image=image)
-        # Keep a reference to the image object
-        self.image_frame.update()
-        self.image_frame.image = image
-        self._current_progress += 1 / FRAME_RATE
-        # if self.is_playing:
-        #     self.after(round(1000 / FRAME_RATE), self.show_jpeg)
-
-    def forward(self):
-        self._current_progress += 5
-        self.rtsp_client.play(self._current_progress)
-
-    def backward(self):
-        if self._current_progress > 5:
-            self._current_progress -= 5
-        else:
-            self._current_progress = 0
-        self.rtsp_client.play(self._current_progress)
-
-    def on_closing(self, event=None):
         is_playing = self.rtsp_client.state == RTSPState.PLAYING
-        if is_playing: self.pause()
+        if is_playing:
+            self.pause()
 
         if tk.messagebox.askokcancel("Quit?", "Are you sure you want to quit?"):
             if self.rtsp_client.state != RTSPState.INIT:
@@ -119,6 +100,28 @@ class Client(tk.Frame):
                 self.kill_gui()
         
         if is_playing: self.play()
+        
+
+    def show_jpeg(self, video_data):
+        self.image = ImageTk.PhotoImage(data=video_data)
+        self.image_frame.configure(image=self.image)
+        # Keep a reference to the image object
+        self.image_frame.update()
+        self.image_frame.image = self.image
+        self._current_progress += 1 / FRAME_RATE
+        # if self.is_playing:
+        #     self.after(round(1000 / FRAME_RATE), self.show_jpeg)
+
+    def forward(self):
+        self._current_progress += 5
+        self.play(True)
+
+    def backward(self):
+        if self._current_progress > 5:
+            self._current_progress -= 5
+        else:
+            self._current_progress = 0
+        self.play(True)        
             
     
     def kill_gui(self):
