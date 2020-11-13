@@ -63,9 +63,9 @@ class RTSPClient:
             raise InvalidMethodError(self.state, 'PLAY')
         else:
             headers = None
-            if begin:
+            if begin is not None:
                 headers = f'Range: npt={begin}-'
-                if end:
+                if end is not None:
                     headers += str(end)
             resp = self._request('PLAY', headers)[0]
             if int(resp['CSeq']) == self.seq_num and resp['Session'] == self.session_id:
