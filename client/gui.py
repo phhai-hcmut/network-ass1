@@ -72,7 +72,8 @@ class Client(tk.Frame):
     def show_jpeg(self, video_data):
         image = ImageTk.PhotoImage(data=video_data)
         self.image_frame.configure(image=image)
-        self.image_frame.update()
+        # Keep a reference to the image object
+        self.image_frame.image = image
 
     def on_closing(self, event=None):
         if self.rtsp_client.state != RTSPState.INIT:
