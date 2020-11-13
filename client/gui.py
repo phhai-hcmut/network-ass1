@@ -4,7 +4,7 @@ import tkinter.messagebox
 
 from PIL import ImageTk, Image
 
-from .rtsp_client import RTSPClient, RTSPState
+from .rtsp_client import RTSPClient, RTSPState, InvalidMethodError
 from .rtp_receiver import RTPReceiver
 
 import time
@@ -162,8 +162,24 @@ class Client2(Client):
     """More user-friendly GUI interface for RTSP client"""
     CONTROL_BUTTONS = ["Play", "Pause", "Stop"]
 
+    def create_widgets(self):
+        placeholer_img = ImageTk.BitmapImage(Image.new('1', (384, 288)))
+        self.image_frame = tk.Label(self, image=placeholer_img)
+        self.image_frame.grid(row=0, column=0, columnspan=len(self.PLAYBACK_BUTTONS))
+
+        for i, btn_text in enumerate(self.CONTROL_BUTTONS):
+            method = btn_text.replace(" ", '').lower()
+            button = tk.Button(
+                self, text=btn_text, command=getattr(self, method),
+                height=2, width=10
+            )
+            button.grid(row = 1, column=i)
+
     def play(self):
-        super().setup()
+        try:
+            super().setup()
+        except InvalidMethodError as err:
+            pass
         super().play()
 
     def stop(self):
