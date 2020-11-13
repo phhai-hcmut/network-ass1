@@ -3,6 +3,13 @@ import logging
 import socket
 
 
+# def _parse_sdp(input):
+#     def parse_line(line):
+#         field, _, value = line.partition('=')
+#         return (field, value)
+#     parsed = list
+
+
 RTSPState = Enum('RTSPState', ['INIT', 'READY', 'PLAYING'])
 
 
@@ -51,11 +58,16 @@ class RTSPClient:
         self.state = RTSPState.READY
         logging.info("RTSP client in state %s", self.state)
 
-    def play(self):
+    def play(self, begin=None, end=None):
         if self.state == RTSPState.INIT:
             raise InvalidMethodError(self.state, 'PLAY')
         elif self.state == RTSPState.READY:
-            resp = self._request('PLAY')[0]
+            headers = None
+            if begin:
+                headers = f'Range: npt={begin}-'
+                if end:
+                    headers += str(end)
+            resp = self._request('PLAY', headers)[0]
             if int(resp['CSeq']) == self.seq_num and resp['Session'] == self.session_id:
                 self.state = RTSPState.PLAYING
         logging.info("RTSP client in state %s", self.state)
@@ -67,7 +79,8 @@ class RTSPClient:
             resp = self._request('PAUSE')[0]
             if int(resp['CSeq']) == self.seq_num and resp['Session'] == self.session_id:
                 self.state = RTSPState.READY
-        logging.info("RTSP client in state %s", self.state)
+                logging.info("RTSP client in state %s", self.state)
+                # return self._parse_npt(resp['Range'])
 
     def teardown(self):
         if self.state != RTSPState.INIT:
@@ -86,10 +99,11 @@ class RTSPClient:
             f'CSeq: {self.seq_num}',
         ]
 
-        if method in ['SETUP', 'DESCRIBE']:
-            req_message.append(headers)
-        else:
+        if method not in ['SETUP', 'DESCRIBE']:
             req_message.append(f'Session: {self.session_id}')
+
+        if headers:
+            req_message.append(headers)
 
         req_message = '\n'.join(req_message).encode()
 

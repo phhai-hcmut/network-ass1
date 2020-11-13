@@ -9,25 +9,27 @@ from .rtp_sender import RTPSender, MJPEG_TYPE
 from .video_stream import VideoStream
 
 
-# We limit maximum numbers of worker thread to 10
-worker_count = threading.Semaphore(10)
+def _parse_npt(string):
+    begin, end = string.removeprefix('npt=').split('-')
+    begin = float(begin)
+    if end:
+        end = float(end)
+    else:
+        end = None
+    return begin, end
 
 
-def start_server(listen_port, listen_addr='', max_clients=None):
+def start_server(listen_port, listen_addr=''):
     rtsp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     rtsp_socket.bind((listen_addr, listen_port))
     rtsp_socket.listen(5)
 
     while True:
-        # If the number of accepted connection reached maxmimum,
-        # we will wait until other client disconnect
-        worker_count.acquire()
         # Receive client info (address, port) through RTSP/TCP session
         worker_sock, client_addr_info = rtsp_socket.accept()
         logging.info("Accept new connection from %s:%d", *client_addr_info)
         server_worker = ServerWorker(worker_sock, client_addr_info)
         server_worker.start()
-        # executor.submit(server_worker.run)
 
 
 RTSPState = Enum('RTSPState', ['INIT', 'READY', 'PLAYING'])
@@ -52,18 +54,18 @@ class ServerWorker(threading.Thread):
         self.video_stream = None
         self.session_id = None
         self.rtp_sender = None
+        self.seqnum = None
 
     def run(self):
         """Receive RTSP request from the client."""
         while True:
             data = self.socket.recv(1024)
             if data:
-                logging.info("Data received:\n" + data.decode())
+                logging.info("Data received:\n%s", data.decode())
                 self.process_rtsp_request(data)
             else:
                 # The client has closed connection
                 break
-        worker_count.release()
         logging.info("Client %s:%d disconnected", *self.client_addr)
 
     def process_rtsp_request(self, data):
@@ -76,12 +78,14 @@ class ServerWorker(threading.Thread):
         # Get the RTSP sequence number
         self.seqnum = request[1].split(' ')[1]
 
-        getattr(self, 'process_' + request_method.lower() + '_request')(request)
+        getattr(self, '_process_' + request_method.lower() + '_request')(request)
 
-    def process_describe_request(self, request):
+    def _process_describe_request(self, request):
         logging.info("Processing DESCRIBE request")
         filename = request[0].split(' ')[1]
-        if not os.path.exists(filename):
+        try:
+            video_stream = VideoStream(filename)
+        except FileNotFoundError:
             self.reply_rtsp(RTSPResponse.FILE_NOT_FOUND)
             return
 
@@ -93,10 +97,11 @@ class ServerWorker(threading.Thread):
             's=RTSP Session',
             f'm=video 0 RTP/AVP {MJPEG_TYPE}',
             'a=framerate:20',
-            'a=mimetype:string;"video/MJPEG"',
+            f'a=range:npt=0-{video_stream.duration}',
         ]).encode()
         headers = 'Content-Type: application/sdp'
         self.reply_rtsp(RTSPResponse.OK, headers, body)
+        video_stream.close()
 
     @staticmethod
     def _make_ntp_timestamp():
@@ -105,7 +110,7 @@ class ServerWorker(threading.Thread):
         timestamp = diff.days * 24 * 60 * 60 + diff.seconds
         return timestamp
 
-    def process_setup_request(self, request):
+    def _process_setup_request(self, request):
         logging.info("Processing SETUP request")
         if self.state == RTSPState.PLAYING:
             # We don't allow client to issue a SETUP request for a
@@ -136,7 +141,16 @@ class ServerWorker(threading.Thread):
                 self.reply_rtsp(RTSPResponse.OK)
                 self.state = RTSPState.READY
 
-    def process_play_request(self, request):
+    def _set_stream_time(self, request):
+        play_range = None
+        for line in request:
+            if line.startswith('Range:'):
+                play_range = line.partition(' ')[2]
+        if play_range:
+            begin, _ = _parse_npt(play_range)
+            self.video_stream.set_time(begin)
+
+    def _process_play_request(self, request):
         logging.info("Processing PLAY request")
         if self.state == RTSPState.INIT:
             # Client must call SETUP method before PLAY method
@@ -153,14 +167,16 @@ class ServerWorker(threading.Thread):
                     self.rtp_sender = rtp_sender
                     # Create a new thread and start sending RTP packets
                     self.rtp_sender.start()
+            self._set_stream_time(request)
             self.rtp_sender.play()
             self.reply_rtsp(RTSPResponse.OK)
             self.state = RTSPState.PLAYING
 
         elif self.state == RTSPState.PLAYING:
+            self._set_stream_time(request)
             self.reply_rtsp(RTSPResponse.OK)
 
-    def process_pause_request(self, request):
+    def _process_pause_request(self, request):
         logging.info("Processing PAUSE request")
         if self.state == RTSPState.INIT:
             self.reply_rtsp(RTSPResponse.INVALID_METHOD)
@@ -173,7 +189,7 @@ class ServerWorker(threading.Thread):
         elif self.state == RTSPState.READY:
             self.reply_rtsp(RTSPResponse.OK)
 
-    def process_teardown_request(self, request):
+    def _process_teardown_request(self, request):
         logging.info("Processing TEARDOWN request")
         if self.video_stream is not None:
             self.video_stream.close()
