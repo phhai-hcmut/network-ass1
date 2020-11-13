@@ -19,6 +19,7 @@ class RTPReceiver:
             packet, sender_addr = self.socket.recvfrom(1 << 15)
         except socket.timeout:
             # When pausing the client, the socket will just timeout and stop, no big deal.
+            # print('socket timeout')
             return
         seqnum = (packet[2] << 8) + packet[3]
         logging.debug(
