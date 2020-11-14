@@ -50,7 +50,7 @@ class RTSPClient:
         return msg
 
     def setup(self, file_name, rtp_port):
-        if self.state == RTSPState.PLAYING:
+        if self.state != RTSPState.INIT:
             raise InvalidMethodError(self.state, 'SETUP')
         self.file_name = file_name
         header = f'Transport: RTP/UDP; client_port= {rtp_port}'
@@ -154,7 +154,7 @@ class RTSPClient:
             header_line = line.split(' ')
             header_name = header_line[0].strip(':')
             return (header_name, ' '.join(header_line[1:]))
-        headers = dict(make_header(line) for line in headers)
+        headers = dict([make_header(line) for line in headers])
         logging.info("Receive %s", headers)
         return headers, body
 
