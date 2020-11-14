@@ -18,21 +18,16 @@ def _parse_npt(string):
 FRAME_RATE = 20
 
 
-class Client(tk.Frame):
+class Client(tk.Tk):
     """GUI interface for RTSP client"""
     # CONTROL_BUTTONS = ["Describe", "Set up", "Play", "Pause", "Tear down"]
     PLAYBACK_BUTTONS = ["Backward","Play","Pause","Forward"]
     SETUP_BUTTONS = ['Describe', "Setup", "TearDown"]
     SWITCH_BUTTONS = ['Previous','Next']
 
-    def __init__(self, master=None, *, server_addr, server_port, rtp_port, file_name):
+    def __init__(self, server_addr, server_port, rtp_port, file_name):
         super().__init__()
-        if master is None:
-            # master is toplevel widget (tk.Tk)
-            self.master.protocol('WM_DELETE_WINDOW', self.teardown)
-            self.pack()
-        else:
-            self.bind('<Destroy>', self.on_closing)
+        self.protocol('WM_DELETE_WINDOW', self.teardown)
         self.rtsp_client = RTSPClient((server_addr, server_port))
         self.rtp_port = rtp_port
         self.file_name = file_name
@@ -112,12 +107,12 @@ class Client(tk.Frame):
             if self.rtsp_client.state != RTSPState.INIT:
                 self.rtsp_client.teardown()
                 self.cleanup()
-                self.kill_gui()
+                self.destroy()
             else:
-                self.kill_gui()
-        
+                self.destroy()
+
         if is_playing: self.play()
-        
+
 
     def show_jpeg(self, video_data):
         self.image = ImageTk.PhotoImage(data=video_data)
@@ -138,18 +133,12 @@ class Client(tk.Frame):
             self._current_progress -= 5
         else:
             self._current_progress = 0
-        self.play(True) 
-        
-            
+        self.play(True)
+
+
     def previous(self): pass
-    def next(self): pass   
-            
-    
-    def kill_gui(self):
-        if isinstance(self.master, tk.Tk):
-            self.master.destroy()
-        else:
-            self.destroy()
+
+    def next(self): pass
 
     def cleanup(self):
         logging.info("Cleaning resources before exiting application...")

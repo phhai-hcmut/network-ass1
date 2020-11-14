@@ -8,7 +8,8 @@ if __name__ == '__main__':
         script = sys.argv[0]
         sys.exit(f"Usage: python {script} <server_port>")
 
-    logging_format = "{asctime}:{levelname}:{module}:{message}"
-    logging.basicConfig(level=logging.DEBUG, format=logging_format, style='{')
+    logging.basicConfig(
+        level=logging.DEBUG, format="%(asctime)s:%(levelname)s:%(message)s"
+    )
     server_port = int(sys.argv[1])
     start_server(server_port)

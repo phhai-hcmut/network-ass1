@@ -11,10 +11,11 @@ if __name__ == '__main__':
     parser.add_argument('file_name')
     args = parser.parse_args()
 
-    logging_format = "{asctime}:{levelname}:{message}"
-    logging.basicConfig(level=logging.DEBUG, format=logging_format, style='{')
+    logging.basicConfig(
+        level=logging.DEBUG, format="%(asctime)s:%(levelname)s:%(message)s"
+    )
 
     # Create a new client
     app = Client(**vars(args))
-    app.master.title("RTPClient")
+    app.title("RTPClient")
     app.mainloop()
