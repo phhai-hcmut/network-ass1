@@ -1,6 +1,5 @@
 import logging
 import tkinter as tk
-import tkinter.messagebox
 
 from PIL import ImageTk, Image
 
@@ -105,7 +104,9 @@ class Client(tk.Tk):
 
         if tk.messagebox.askokcancel("Quit?", "Are you sure you want to quit?"):
             if self.rtsp_client.state != RTSPState.INIT:
-                self.rtsp_client.teardown()
+                try: # try catch in case server dies and teardown cant process
+                    self.rtsp_client.teardown()
+                except: pass
                 self.cleanup()
                 self.destroy()
             else:
@@ -136,9 +137,13 @@ class Client(tk.Tk):
         self.play(True)
 
 
-    def previous(self): pass
+    def previous(self):
+        self._current_progress = 0
+        self.rtsp_client.switch(previous=True)
 
-    def next(self): pass
+    def next(self):
+        self._current_progress = 0
+        self.rtsp_client.switch()
 
     def cleanup(self):
         logging.info("Cleaning resources before exiting application...")
