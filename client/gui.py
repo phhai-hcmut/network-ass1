@@ -4,7 +4,7 @@ import tkinter.messagebox
 
 from PIL import ImageTk, Image
 
-from .rtsp_client import RTSPClient, RTSPState
+from .rtsp_client import RTSPClient, RTSPState, InvalidMethodError
 from .rtp_receiver import RTPReceiver
 
 import time
@@ -21,7 +21,9 @@ FRAME_RATE = 20
 class Client(tk.Frame):
     """GUI interface for RTSP client"""
     # CONTROL_BUTTONS = ["Describe", "Set up", "Play", "Pause", "Tear down"]
-    CONTROL_BUTTONS = ["Backward", "Forward", "Set up", "Play", "Pause", "Tear down"]
+    PLAYBACK_BUTTONS = ["Backward","Play","Pause","Forward"]
+    SETUP_BUTTONS = ['Describe', "Setup", "TearDown"]
+    SWITCH_BUTTONS = ['Previous','Next']
 
     def __init__(self, master=None, *, server_addr, server_port, rtp_port, file_name):
         super().__init__()
@@ -41,15 +43,30 @@ class Client(tk.Frame):
     def create_widgets(self):
         placeholer_img = ImageTk.BitmapImage(Image.new('1', (384, 288)))
         self.image_frame = tk.Label(self, image=placeholer_img)
-        self.image_frame.grid(row=0, column=0, columnspan=len(self.CONTROL_BUTTONS))
+        self.image_frame.grid(row=0, column=0, columnspan=len(self.PLAYBACK_BUTTONS))
 
-        for i, btn_text in enumerate(self.CONTROL_BUTTONS):
+        for i, btn_text in enumerate(self.SWITCH_BUTTONS):
             method = btn_text.replace(" ", '').lower()
             button = tk.Button(
                 self, text=btn_text, command=getattr(self, method),
                 height=2, width=10
             )
-            button.grid(row=1, column=i)
+            button.grid(row = 1, column=1+i)
+
+        for i, btn_text in enumerate(self.PLAYBACK_BUTTONS):
+            method = btn_text.replace(" ", '').lower()
+            button = tk.Button(
+                self, text=btn_text, command=getattr(self, method),
+                height=2, width=10
+            )
+            button.grid(row = 2, column=i)
+        for i, btn_text in enumerate(self.SETUP_BUTTONS):
+            method = btn_text.replace(" ", '').lower()
+            button = tk.Button(
+                self, text=btn_text, command=getattr(self, method),
+                height=2, width=10
+            )
+            button.grid(row = 3, column=i)
 
     def describe(self):
         message = "\n".join(self.rtsp_client.describe(self.file_name))
@@ -58,15 +75,15 @@ class Client(tk.Frame):
                 self, text=message, background='white',
                 justify='left'
             )
-            describe_frame.grid(row=2, column=0, columnspan=len(self.CONTROL_BUTTONS))
+            describe_frame.grid(row=4, column=0, columnspan=len(self.PLAYBACK_BUTTONS))
 
     def setup(self):
         message = self.rtsp_client.describe(self.file_name)
         # Get total duration of the video
         range_line = next(line for line in message if line.startswith('a=range'))
         _, self._video_duration = _parse_npt(range_line.removeprefix('a=range:'))
-        label = tk.Label(self, text=str(self._video_duration), background='white')
-        label.grid(row=2)
+        label = tk.Label(self, text='Duration:'+str(self._video_duration), background='white')
+        label.grid(row=3,column = 3)
         self.rtsp_client.setup(self.file_name, self.rtp_port)
         self.rtp_recv = RTPReceiver(self.rtp_port)
 
@@ -121,7 +138,11 @@ class Client(tk.Frame):
             self._current_progress -= 5
         else:
             self._current_progress = 0
-        self.play(True)        
+        self.play(True) 
+        
+            
+    def previous(self): pass
+    def next(self): pass   
             
     
     def kill_gui(self):
@@ -141,8 +162,24 @@ class Client2(Client):
     """More user-friendly GUI interface for RTSP client"""
     CONTROL_BUTTONS = ["Play", "Pause", "Stop"]
 
+    def create_widgets(self):
+        placeholer_img = ImageTk.BitmapImage(Image.new('1', (384, 288)))
+        self.image_frame = tk.Label(self, image=placeholer_img)
+        self.image_frame.grid(row=0, column=0, columnspan=len(self.PLAYBACK_BUTTONS))
+
+        for i, btn_text in enumerate(self.CONTROL_BUTTONS):
+            method = btn_text.replace(" ", '').lower()
+            button = tk.Button(
+                self, text=btn_text, command=getattr(self, method),
+                height=2, width=10
+            )
+            button.grid(row = 1, column=i)
+
     def play(self):
-        super().setup()
+        try:
+            super().setup()
+        except InvalidMethodError as err:
+            pass
         super().play()
 
     def stop(self):
