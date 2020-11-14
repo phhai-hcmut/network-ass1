@@ -1,14 +1,35 @@
 import io
 from pathlib import Path
+from os import listdir
+from os.path import isfile, join
 
 class VideoStream:
     def __init__(self, filename):
-        path = Path(__file__).parent / "../video/" / filename #get the file in the relative path 
-        self._file = open(path, 'rb')
+        self._video_path = Path(__file__).parent / "../video/" #get the file in the relative path 
+        self.video_files = [f for f in listdir(self._video_path) if isfile(join(self._video_path, f))] # all video file names
+        self.openfile(filename)
         self.frame_num = -1
         self._read_frames = []
         self.frame_rate = 20
         self.total_frames = self._count_frames()
+    def openfile(self,filename: str):
+        for i, file in enumerate(self.video_files):
+            if filename == file: 
+                self.cur_idx = i
+                self._file = open(self._video_path / filename, 'rb')
+                return
+        print('Non available file')
+
+    def change_file(self,offset: int):
+        self.cur_idx = (self.cur_idx + offset) % len(self.video_files)
+        self._file = open(self._video_path / self.video_files[self.cur_idx], 'rb')
+        self.frame_num = -1
+        self.total_frames = self._count_frames()
+        self._read_frames = []
+        
+        return self.video_files[self.cur_idx]
+            
+        
 
     def read(self):
         """Read a frame"""
