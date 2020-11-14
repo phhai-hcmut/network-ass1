@@ -3,13 +3,6 @@ import logging
 import socket
 
 
-# def _parse_sdp(input):
-#     def parse_line(line):
-#         field, _, value = line.partition('=')
-#         return (field, value)
-#     parsed = list
-
-
 RTSPState = Enum('RTSPState', ['INIT', 'READY', 'PLAYING'])
 
 
@@ -73,19 +66,21 @@ class RTSPClient:
             if int(resp['CSeq']) == self.seq_num and resp['Session'] == self.session_id:
                 self.state = RTSPState.PLAYING
         logging.info("RTSP client in state %s", self.state)
+
     def switch(self,previous = False):
-        if self.state == RTSPState.INIT:
-            raise InvalidMethodError(self.state, 'SWITCH')
-        elif self.state == RTSPState.PLAYING:
+        # if self.state == RTSPState.INIT:
+        #     raise InvalidMethodError(self.state, 'SWITCH')
+
+        if self.state == RTSPState.PLAYING:
             self.pause()
-            self.switch(previous)
-        else: #ready state
-            resp = self._request("PREVIOUS")[0] if previous else self._request("NEXT")[0]
-            if int(resp['CSeq']) == self.seq_num and resp['Session'] == self.session_id:
-                self.file_name = resp['NewFilename']
-                self.state = RTSPState.READY
-                logging.info("RTSP client in state %s", self.state)
-                
+
+        resp = self._request("PREVIOUS")[0] if previous else self._request("NEXT")[0]
+        if int(resp['CSeq']) == self.seq_num and resp['Session'] == self.session_id:
+            self.file_name = resp['New-Filename']
+            self.state = RTSPState.READY
+            logging.info("RTSP client in state %s", self.state)
+            return self.file_name
+
     def pause(self):
         if self.state == RTSPState.INIT:
             raise InvalidMethodError(self.state, 'PAUSE')

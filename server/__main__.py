@@ -1,4 +1,6 @@
+import glob
 import logging
+import os
 import sys
 
 from .rtsp_server import start_server
@@ -12,4 +14,6 @@ if __name__ == '__main__':
         level=logging.DEBUG, format="%(asctime)s:%(levelname)s:%(message)s"
     )
     server_port = int(sys.argv[1])
-    start_server(server_port)
+    os.chdir('video')
+    video_files = glob.glob('*.mjpeg')
+    start_server(server_port, video_files=video_files)

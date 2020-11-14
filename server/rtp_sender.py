@@ -44,7 +44,7 @@ class RTPSender(threading.Thread):
                     )
                     self._socket.sendto(packet, self.recv_addr)
                 except socket.error as err:
-                    logging.warn(err)
+                    logging.warning(err)
                     print("Connection Error")
             # else:
             #     # Reach end of stream

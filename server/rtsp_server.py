@@ -18,7 +18,7 @@ def _parse_npt(string):
     return begin, end
 
 
-def start_server(listen_port, listen_addr=''):
+def start_server(listen_port, listen_addr='', video_files=None):
     rtsp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     rtsp_socket.bind((listen_addr, listen_port))
     rtsp_socket.listen(5)
@@ -27,7 +27,7 @@ def start_server(listen_port, listen_addr=''):
         # Receive client info (address, port) through RTSP/TCP session
         worker_sock, client_addr_info = rtsp_socket.accept()
         logging.info("Accept new connection from %s:%d", *client_addr_info)
-        server_worker = ServerWorker(worker_sock)
+        server_worker = ServerWorker(worker_sock, video_files)
         server_worker.start()
 
 
@@ -45,10 +45,12 @@ class RTSPResponse(Enum):
 class ServerWorker(threading.Thread):
     RTSP_VERSION = 'RTSP/1.0'
 
-    def __init__(self, socket):
+    def __init__(self, rtsp_socket, video_files):
         super().__init__()
-        self.socket = socket
+        self.socket = rtsp_socket
         self._state = RTSPState.INIT
+        self.video_files = video_files
+        self._cur_idx = None
         self._video_stream = None
         self._session_id = None
         self._rtp_sender = None
@@ -140,6 +142,8 @@ class ServerWorker(threading.Thread):
             self._reply_rtsp(RTSPResponse.FILE_NOT_FOUND)
             return
 
+        if self.video_files:
+            self._cur_idx = self.video_files.index(filename)
         if self._video_stream is not None:
             # Close old video_stream before open new one
             self._video_stream.close()
@@ -181,20 +185,25 @@ class ServerWorker(threading.Thread):
         self._reply_rtsp(RTSPResponse.OK)
         self._state = RTSPState.PLAYING
 
-    def _process_next_request(self,request,header):
+    def _process_next_request(self, request, headers):
         logging.info("Processing NEXT request")
-        self.process_switch_request()
-    def _process_previous_request(self, request,header):
-        logging.info("Processing NEXT request")
-        self.process_switch_request(previous= True)
+        self._process_switch_request()
 
-    def process_switch_request(self,previous = False):
+    def _process_previous_request(self, request, headers):
+        logging.info("Processing NEXT request")
+        self._process_switch_request(previous=True)
+
+    def _process_switch_request(self, previous=False):
         if self._state != RTSPState.READY:
             self._reply_rtsp(RTSPResponse.INVALID_METHOD)
         else:
-            new_filename = self._video_stream.change_file(-1 if previous else 1)
-            headers = 'NewFilename: ' + new_filename
-            self._reply_rtsp(RTSPResponse.OK,headers)
+            offset = -1 if previous else 1
+            self._cur_idx = (self._cur_idx + offset) % len(self.video_files)
+            new_filename = self.video_files[self._cur_idx]
+            headers = 'New-Filename: ' + new_filename
+            self._video_stream = VideoStream(new_filename)
+            self._rtp_sender.video_stream = self._video_stream
+            self._reply_rtsp(RTSPResponse.OK, headers)
             self._state = RTSPState.READY
 
     def _process_pause_request(self, filename, headers):
