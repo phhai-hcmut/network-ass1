@@ -1,9 +1,10 @@
 import io
-
+from pathlib import Path
 
 class VideoStream:
     def __init__(self, filename):
-        self._file = open(filename, 'rb')
+        path = Path(__file__).parent / "../video/" / filename #get the file in the relative path 
+        self._file = open(path, 'rb')
         self.frame_num = -1
         self._read_frames = []
         self.frame_rate = 20
