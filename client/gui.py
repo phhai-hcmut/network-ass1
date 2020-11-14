@@ -170,9 +170,10 @@ class Client2(Client):
     CONTROL_BUTTONS = ["Play", "Pause", "Stop"]
 
     def create_widgets(self):
+        
         placeholer_img = ImageTk.BitmapImage(Image.new('1', (384, 288)))
         self.image_frame = tk.Label(self, image=placeholer_img)
-        self.image_frame.grid(row=0, column=0, columnspan=len(self.PLAYBACK_BUTTONS))
+        self.image_frame.grid(row=0, column=0, columnspan=len(self.CONTROL_BUTTONS))
 
         for i, btn_text in enumerate(self.CONTROL_BUTTONS):
             method = btn_text.replace(" ", '').lower()
@@ -180,7 +181,14 @@ class Client2(Client):
                 self, text=btn_text, command=getattr(self, method),
                 height=2, width=10
             )
-            button.grid(row = 1, column=i)
+            button.grid(row = 2, column=i)
+        self._video_duration = tk.StringVar()
+        label = tk.Label(self, textvariable=self._video_duration, background='white')
+        label.grid(row=1, column=2)
+
+        self._video_remain = tk.StringVar()
+        label = tk.Label(self, textvariable=self._video_remain, background='white')
+        label.grid(row=1, column=0)
 
     def play(self):
         try:
