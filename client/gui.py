@@ -160,7 +160,11 @@ class Client(tk.Tk):
         #     self.after(round(1000 / FRAME_RATE), self.show_jpeg)
 
     def forward(self):
-        self._video_info['progress'] += 5
+        remain = self._video_info['duration'] - self._video_info['progress']
+        if remain < 5:
+            self._video_info['progress'] = self._video_info['duration']
+        else:
+            self._video_info['progress'] += 5
         self.play(True)
 
     def backward(self):
