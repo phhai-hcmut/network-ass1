@@ -1,8 +1,7 @@
 import logging
 import tkinter as tk
-
+from tkinter import messagebox
 from PIL import ImageTk, Image
-
 from .rtsp_client import RTSPClient, RTSPState, InvalidMethodError
 from .rtp_receiver import RTPReceiver
 
@@ -116,9 +115,9 @@ class Client(tk.Tk):
             self.pause()
 
         if tk.messagebox.askokcancel("Quit?", "Are you sure you want to quit?"):
-            if self.rtsp_client.state != RTSPState.INIT:
+            if self._rtsp_client.state != RTSPState.INIT:
                 try: # try catch in case server dies and teardown cant process
-                    self.rtsp_client.teardown()
+                    self._rtsp_client.teardown()
                 except: pass
                 self.cleanup()
             self.destroy()
@@ -153,11 +152,11 @@ class Client(tk.Tk):
 
     def previous(self):
         self._current_progress = 0
-        self.rtsp_client.switch(previous=True)
+        self._rtsp_client.switch(previous=True)
 
     def next(self):
         self._current_progress = 0
-        self.rtsp_client.switch()
+        self._rtsp_client.switch()
 
     def cleanup(self):
         logging.info("Cleaning resources before exiting application...")

@@ -19,20 +19,19 @@ class RTPSender(threading.Thread):
     def __init__(self, recv_addr, video_stream):
         super().__init__()
         # Create a new socket for RTP/UDP
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.recv_addr = recv_addr
         self.video_stream = video_stream
         self.is_playing = threading.Event()
         self.closed = False
 
     def run(self):
-        self.is_playing.set()
         while True:
             if not self.closed:
                 if not self.is_playing.wait(1 / self.video_stream.frame_rate):
                     continue
             else:
-                self.socket.close()
+                self._socket.close()
                 return
 
             data = self.video_stream.read()
@@ -43,7 +42,7 @@ class RTPSender(threading.Thread):
                         "Send frame #%d of %d bytes to %s:%d",
                         self.video_stream.frame_num, len(packet), *self.recv_addr
                     )
-                    self.socket.sendto(packet, self.recv_addr)
+                    self._socket.sendto(packet, self.recv_addr)
                 except socket.error as err:
                     logging.warn(err)
                     print("Connection Error")
@@ -93,4 +92,5 @@ class RTPSender(threading.Thread):
         return headers + payload
 
     def close(self):
+        """Stop the RTP sender"""
         self.closed = True
