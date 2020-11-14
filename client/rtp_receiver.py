@@ -16,7 +16,7 @@ class RTPReceiver:
         # we get the whole packet. It is important to set the buffer large enough
         # to store all the content of the packet
         try:
-            packet, sender_addr = self.socket.recvfrom(1 << 15)
+            packet, sender_addr = self.socket.recvfrom(1 << 20)
         except socket.timeout:
             # When pausing the client, the socket will just timeout and stop, no big deal.
             # print('socket timeout')
