@@ -13,6 +13,5 @@ if __name__ == '__main__':
         for filename in args.input_images:
             with open(filename, 'rb') as frame:
                 data = frame.read()
-                f.write("{:05d}".format(len(data)).encode())
-                # f.write(len(data).to_bytes(5, 'big'))
+                f.write(len(data).to_bytes(5, 'big'))
                 f.write(data)
