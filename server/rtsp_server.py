@@ -96,7 +96,8 @@ class ServerWorker(threading.Thread):
             ),
             's=RTSP Session',
             f'm=video 0 RTP/AVP {MJPEG_TYPE}',
-            'a=framerate:20',
+            f'a=rtpmap:{MJPEG_TYPE} mjpeg/',
+            f'a=framerate:{video_stream.frame_rate}',
             f'a=range:npt=0-{video_stream.duration}',
         ]).encode()
         headers = 'Content-Type: application/sdp'
