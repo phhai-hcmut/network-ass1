@@ -175,6 +175,23 @@ class ServerWorker(threading.Thread):
         elif self.state == RTSPState.PLAYING:
             self._set_stream_time(request)
             self.reply_rtsp(RTSPResponse.OK)
+    def _process_next_request(self,request):
+        logging.info("Processing NEXT request")
+        self.process_switch_request()
+    def _process_previous_request(self, request):
+        logging.info("Processing NEXT request")
+        self.process_switch_request(previous= True)
+
+    def process_switch_request(self,previous = False):
+        if self.state != RTSPState.READY:
+            self.reply_rtsp(RTSPResponse.INVALID_METHOD)
+        else:
+            new_filename = self.video_stream.change_file(-1 if previous else 1)
+            headers = 'NewFilename: ' + new_filename
+            self.reply_rtsp(RTSPResponse.OK,headers)
+            self.state = RTSPState.READY
+
+
 
     def _process_pause_request(self, request):
         logging.info("Processing PAUSE request")
