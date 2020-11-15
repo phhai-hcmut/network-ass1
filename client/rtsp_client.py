@@ -28,8 +28,8 @@ class RTSPClient:
 
     def __init__(self, server_addr):
         # Open a TCP connection to the server
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect(server_addr)
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket.connect(server_addr)
 
         self._state = RTSPState.INIT
         self._filename = None
@@ -132,12 +132,12 @@ class RTSPClient:
 
     def _send(self, req_message):
         # Send a request message to the server
-        self.socket.send(req_message)
+        self._socket.send(req_message)
 
         # Receive a reponse message from the server.
         # TCP is a stream-based protocol, so the data returned by recv()
         # is not guaranteed to be a complete response message from the server
-        data = self.socket.recv(1024)
+        data = self._socket.recv(1024)
         return data
 
     def _process_response(self, message):
@@ -166,4 +166,4 @@ class RTSPClient:
         return headers, body
 
     def close(self):
-        self.socket.close()
+        self._socket.close()

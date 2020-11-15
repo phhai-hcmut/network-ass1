@@ -4,10 +4,12 @@ import time
 
 
 class RTPReceiver:
+    HEADER_SIZE = 12
+
     def __init__(self, listen_port, timeout=0.5):
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.bind(('localhost', listen_port))
-        self.socket.settimeout(timeout)
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._socket.bind(('localhost', listen_port))
+        self._socket.settimeout(timeout)
         self.data = []
 
     def read(self):
@@ -16,7 +18,7 @@ class RTPReceiver:
         # we get the whole packet. It is important to set the buffer large enough
         # to store all the content of the packet
         try:
-            packet, sender_addr = self.socket.recvfrom(1 << 20)
+            packet, sender_addr = self._socket.recvfrom(1 << 20)
         except socket.timeout:
             # When pausing the client, the socket will just timeout and stop, no big deal.
             # print('socket timeout')
@@ -24,10 +26,12 @@ class RTPReceiver:
         seqnum = (packet[2] << 8) + packet[3]
         logging.debug(
             "Receive frame #%d of %d bytes from %s:%s",
-            seqnum, len(packet), *sender_addr
+            seqnum,
+            len(packet),
+            *sender_addr,
         )
         # Skip header
-        payload = packet[12:]
+        payload = packet[self.HEADER_SIZE:]
         self.data.append((time.time(), len(payload)))
         return payload
 
@@ -38,4 +42,4 @@ class RTPReceiver:
                 start_time = self.data[0][0]
                 for ptime, size in self.data:
                     f.write(f'{ptime - start_time},{size}\n')
-        self.socket.close()
+        self._socket.close()

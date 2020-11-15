@@ -21,36 +21,36 @@ class Client(tk.Tk):
     SETUP_BUTTONS = ['Describe', "Setup", "TearDown"]
     SWITCH_BUTTONS = ['Previous', 'Next']
 
-    def __init__(self, server_addr, server_port, rtp_port, file_name):
+    def __init__(self, server_addr, server_port, rtp_port, filename):
         super().__init__()
-        self.protocol('WM_DELETE_WINDOW', self.teardown)
+        self.protocol('WM_DELETE_WINDOW', self._teardown_video)
         self._rtsp_client = RTSPClient((server_addr, server_port))
         self.rtp_port = rtp_port
         self._rtp_recv = None
-        self._video_info = {'filename': file_name}
-        self.create_widgets()
+        self._video_info = {'filename': filename}
+        self._create_widgets()
         self._get_video_info()
 
-    def create_widgets(self):
+    def _create_widgets(self):
         placeholer_img = ImageTk.BitmapImage(Image.new('1', (384, 288)))
         self.image_frame = tk.Label(self, image=placeholer_img)
         self.image_frame.grid(row=0, column=0, columnspan=len(self.PLAYBACK_BUTTONS))
 
         for i, btn_text in enumerate(self.SWITCH_BUTTONS):
-            method = btn_text.replace(" ", '').lower()
+            method = '_{}_video'.format(btn_text.replace(" ", '').lower())
             button = tk.Button(
                 self, text=btn_text, command=getattr(self, method), height=2, width=10
             )
             button.grid(row=2, column=1 + i)
 
         for i, btn_text in enumerate(self.PLAYBACK_BUTTONS):
-            method = btn_text.replace(" ", '').lower()
+            method = '_{}_video'.format(btn_text.replace(" ", '').lower())
             button = tk.Button(
                 self, text=btn_text, command=getattr(self, method), height=2, width=10
             )
             button.grid(row=3, column=i)
         for i, btn_text in enumerate(self.SETUP_BUTTONS):
-            method = btn_text.replace(" ", '').lower()
+            method = '_{}_video'.format(btn_text.replace(" ", '').lower())
             button = tk.Button(
                 self, text=btn_text, command=getattr(self, method), height=2, width=10
             )
@@ -96,7 +96,7 @@ class Client(tk.Tk):
             framerate_line.removeprefix('a=framerate:')
         )
 
-    def describe(self):
+    def _describe_video(self):
         message = "\n".join(self._rtsp_client.describe(self._video_info['filename']))
         if message:
             describe_frame = tk.Label(
@@ -104,11 +104,11 @@ class Client(tk.Tk):
             )
             describe_frame.grid(row=6, column=0, columnspan=len(self.PLAYBACK_BUTTONS))
 
-    def setup(self):
+    def _setup_video(self):
         self._rtsp_client.setup(self._video_info['filename'], self.rtp_port)
         self._rtp_recv = RTPReceiver(self.rtp_port)
 
-    def play(self, jump=False):
+    def _play_video(self, jump=False):
         try:
             if jump:
                 self._rtsp_client.play(self._video_info['progress'])
@@ -121,45 +121,50 @@ class Client(tk.Tk):
         while self._rtsp_client.state == RTSPState.PLAYING:
             video_data = self._rtp_recv.read()
             if video_data:
-                self.show_jpeg(video_data)
+                self._show_jpeg(video_data)
+                self._update_video_info()
             else:
                 break
 
-    def pause(self):
+    def _pause_video(self):
         self._rtsp_client.pause()
 
-    def teardown(self):
+    def _teardown_video(self):
         is_playing = self._rtsp_client.state == RTSPState.PLAYING
         if is_playing:
-            self.pause()
+            self._pause_video()
 
-        if tk.messagebox.askokcancel("Quit?", "Are you sure you want to quit?"):
+        if messagebox.askokcancel("Quit?", "Are you sure you want to quit?"):
             if self._rtsp_client.state != RTSPState.INIT:
                 try:  # try catch in case server dies and teardown cant process
                     self._rtsp_client.teardown()
                 except:
                     pass
-                self.cleanup()
+                self._cleanup()
             self.destroy()
             return
 
         if is_playing:
-            self.play()
+            self._play_video()
 
-    def show_jpeg(self, video_data):
+    def _show_jpeg(self, video_data):
         self.image = ImageTk.PhotoImage(data=video_data)
         self.image_frame.configure(image=self.image)
         # Keep a reference to the image object
         self.image_frame.update()
         self.image_frame.image = self.image
+
+    def _update_video_info(self):
         self._video_info['progress'] += 1 / self._video_info['frame_rate']
         remain = self._video_info['duration'] - self._video_info['progress']
         self._video_remain.set(f"Remaining: {round(remain)}")
-        self._video_progress.set(self._video_info['progress'] / self._video_info['duration'])
+        self._video_progress.set(
+            self._video_info['progress'] / self._video_info['duration']
+        )
         # if self.is_playing:
         #     self.after(round(1000 / FRAME_RATE), self.show_jpeg)
 
-    def forward(self):
+    def _forward_video(self):
         remain = self._video_info['duration'] - self._video_info['progress']
         if remain < 5:
             self._video_info['progress'] = self._video_info['duration']
@@ -167,59 +172,64 @@ class Client(tk.Tk):
             self._video_info['progress'] += 5
         self.play(True)
 
-    def backward(self):
+    def _backward_video(self):
         if self._video_info['progress'] > 5:
             self._video_info['progress'] -= 5
         else:
             self._video_info['progress'] = 0
         self.play(True)
 
-    def previous(self):
+    def _previous_video(self):
         self._video_info['progress'] = 0
         self._video_info['filename'] = self._rtsp_client.switch(previous=True)
         self._filename.set(self._video_info['filename'])
         self._get_video_info()
 
-    def next(self):
+    def _next_video(self):
         self._video_info['progress'] = 0
         self._video_info['filename'] = self._rtsp_client.switch()
         self._filename.set(self._video_info['filename'])
         self._get_video_info()
 
-    def cleanup(self):
+    def _cleanup(self):
         logging.info("Cleaning resources before exiting application...")
         self._rtsp_client.close()
         if self._rtp_recv is not None:
             self._rtp_recv.close()
 
 
-class Client2(Client):
+class SimpleClient(Client):
     """More user-friendly GUI interface for RTSP client"""
 
     CONTROL_BUTTONS = ["Play", "Pause", "Stop"]
 
-    def create_widgets(self):
+    def _create_widgets(self):
 
         placeholer_img = ImageTk.BitmapImage(Image.new('1', (384, 288)))
         self.image_frame = tk.Label(self, image=placeholer_img)
         self.image_frame.grid(row=0, column=0, columnspan=len(self.CONTROL_BUTTONS))
 
         for i, btn_text in enumerate(self.CONTROL_BUTTONS):
-            method = btn_text.replace(" ", '').lower()
+            method = '_{}_video'.format(btn_text.replace(" ", '').lower())
             button = tk.Button(
                 self, text=btn_text, command=getattr(self, method), height=2, width=10
             )
             button.grid(row=2, column=i)
-    
-    #NOTE: have to pass this function cause it uses some attributes not available in this client version.
-    def _get_video_info(self): pass
 
-    def play(self):
+    # NOTE: Have to pass these functions because it uses some attributes
+    # not available in this client version.
+    def _get_video_info(self):
+        pass
+
+    def _update_video_info(self):
+        pass
+
+    def _play_video(self):
         try:
-            super().setup()
-        except InvalidMethodError as err:
+            super()._setup_video()
+        except InvalidMethodError:
             pass
-        super().play()
+        super()._play_video()
 
-    def stop(self):
-        super().teardown()
+    def _stop_video(self):
+        super()._teardown_video()
