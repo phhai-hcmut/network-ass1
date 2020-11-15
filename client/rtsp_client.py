@@ -40,16 +40,16 @@ class RTSPClient:
     def state(self):
         return self._state
 
-    def describe(self, file_name):
-        self._filename = file_name
+    def describe(self, filename):
+        self._filename = filename
         header = 'Accept: application/sdp'
         _, msg = self._request('DESCRIBE', header)
         return msg
 
-    def setup(self, file_name, rtp_port):
+    def setup(self, filename, rtp_port):
         if self._state != RTSPState.INIT:
             raise InvalidMethodError(self._state, 'SETUP')
-        self._filename = file_name
+        self._filename = filename
         header = f'Transport: RTP/UDP; client_port= {rtp_port}'
         resp_headers, _ = self._request('SETUP', header)
 
