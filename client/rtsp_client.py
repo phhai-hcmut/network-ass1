@@ -12,11 +12,11 @@ class RTSPClientException(Exception):
 
 class RTSPError(RTSPClientException):
     """A RTSP error occurred."""
-    pass
 
 
 class InvalidMethodError(RTSPClientException):
     """Issue a method not valid in a state."""
+
     def __init__(self, state, method):
         state = state.name.title()
         method = method.upper()
@@ -31,10 +31,14 @@ class RTSPClient:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect(server_addr)
 
-        self.state = RTSPState.INIT
+        self._state = RTSPState.INIT
         self._filename = None
         self._seqnum = 0
         self._session_id = None
+
+    @property
+    def state(self):
+        return self._state
 
     def describe(self, file_name):
         self._filename = file_name
@@ -44,61 +48,67 @@ class RTSPClient:
         return msg
 
     def setup(self, file_name, rtp_port):
-        if self.state != RTSPState.INIT:
-            raise InvalidMethodError(self.state, 'SETUP')
+        if self._state != RTSPState.INIT:
+            raise InvalidMethodError(self._state, 'SETUP')
         self._filename = file_name
         header = f'Transport: RTP/UDP; client_port= {rtp_port}'
         resp_headers, _ = self._request('SETUP', header)
 
         self._session_id = resp_headers['Session']
-        self.state = RTSPState.READY
-        logging.info("RTSP client in state %s", self.state)
+        self._state = RTSPState.READY
+        logging.info("RTSP client in state %s", self._state)
 
     def play(self, begin=None, end=None):
-        if self.state == RTSPState.INIT:
-            raise InvalidMethodError(self.state, 'PLAY')
-        else:
-            headers = None
-            if begin is not None:
-                headers = f'Range: npt={begin}-'
-                if end is not None:
-                    headers += str(end)
-            resp = self._request('PLAY', headers)[0]
-            if int(resp['CSeq']) == self._seqnum and resp['Session'] == self._session_id:
-                self.state = RTSPState.PLAYING
-        logging.info("RTSP client in state %s", self.state)
+        if self._state == RTSPState.INIT:
+            raise InvalidMethodError(self._state, 'PLAY')
 
-    def switch(self,previous = False):
-        # if self.state == RTSPState.INIT:
-        #     raise InvalidMethodError(self.state, 'SWITCH')
+        headers = None
+        if begin is not None:
+            headers = f'Range: npt={begin}-'
+            if end is not None:
+                headers += str(end)
+        resp = self._request('PLAY', headers)[0]
+        if int(resp['CSeq']) == self._seqnum and resp['Session'] == self._session_id:
+            self._state = RTSPState.PLAYING
+        logging.info("RTSP client in state %s", self._state)
 
-        if self.state == RTSPState.PLAYING:
+    def switch(self, previous=False):
+        # if self._state == RTSPState.INIT:
+        #     raise InvalidMethodError(self._state, 'SWITCH')
+
+        if self._state == RTSPState.PLAYING:
             self.pause()
 
         resp = self._request('PREVIOUS')[0] if previous else self._request('NEXT')[0]
         if int(resp['CSeq']) == self._seqnum:
             self._filename = resp['New-Filename']
-            self.state = RTSPState.SWITCH
-            logging.info("RTSP client in state %s", self.state)
+            self._state = RTSPState.SWITCH
+            logging.info("RTSP client in state %s", self._state)
             return self._filename
 
     def pause(self):
-        if self.state == RTSPState.INIT:
-            raise InvalidMethodError(self.state, 'PAUSE')
-        elif self.state == RTSPState.PLAYING:
+        if self._state == RTSPState.INIT:
+            raise InvalidMethodError(self._state, 'PAUSE')
+        elif self._state == RTSPState.PLAYING:
             resp = self._request('PAUSE')[0]
-            if int(resp['CSeq']) == self._seqnum and resp['Session'] == self._session_id:
-                self.state = RTSPState.READY
-                logging.info("RTSP client in state %s", self.state)
+            if (
+                int(resp['CSeq']) == self._seqnum
+                and resp['Session'] == self._session_id
+            ):
+                self._state = RTSPState.READY
+                logging.info("RTSP client in state %s", self._state)
                 # return self._parse_npt(resp['Range'])
 
     def teardown(self):
-        if self.state != RTSPState.INIT:
+        if self._state != RTSPState.INIT:
             resp = self._request('TEARDOWN')[0]
-            if int(resp['CSeq']) == self._seqnum and resp['Session'] == self._session_id:
+            if (
+                int(resp['CSeq']) == self._seqnum
+                and resp['Session'] == self._session_id
+            ):
                 self._session_id = None
-                self.state = RTSPState.INIT
-        logging.info("RTSP client in state %s", self.state)
+                self._state = RTSPState.INIT
+        logging.info("RTSP client in state %s", self._state)
 
     def _request(self, method, headers=None):
         self._seqnum += 1
@@ -140,7 +150,7 @@ class RTSPClient:
         if '' in resp:
             # The response contains body
             body_idx = resp.index('') + 1
-            headers = resp[1:body_idx - 1]
+            headers = resp[1 : body_idx - 1]
             body = resp[body_idx:]
         else:
             headers = resp[1:]
@@ -150,6 +160,7 @@ class RTSPClient:
             header_line = line.split(' ')
             header_name = header_line[0].strip(':')
             return (header_name, ' '.join(header_line[1:]))
+
         headers = dict([make_header(line) for line in headers])
         logging.info("Receive %s", headers)
         return headers, body

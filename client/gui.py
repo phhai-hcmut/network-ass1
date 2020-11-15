@@ -1,11 +1,11 @@
 import logging
 import tkinter as tk
 from tkinter import messagebox, ttk
-from PIL import ImageTk, Image
-from .rtsp_client import RTSPClient, RTSPState, InvalidMethodError
-from .rtp_receiver import RTPReceiver
 
-import time
+from PIL import Image, ImageTk
+
+from .rtp_receiver import RTPReceiver
+from .rtsp_client import InvalidMethodError, RTSPClient, RTSPState
 
 
 def _parse_npt(string):
@@ -118,7 +118,7 @@ class Client(tk.Tk):
             messagebox.showwarning("Invalid?", "Please set up video before playing")
             return
 
-        while True:
+        while self._rtsp_client.state == RTSPState.PLAYING:
             video_data = self._rtp_recv.read()
             if video_data:
                 self.show_jpeg(video_data)
