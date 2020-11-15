@@ -44,7 +44,6 @@ class RTSPClient:
         self._filename = file_name
         header = 'Accept: application/sdp'
         _, msg = self._request('DESCRIBE', header)
-        self._filename = None
         return msg
 
     def setup(self, file_name, rtp_port):
@@ -128,11 +127,12 @@ class RTSPClient:
         req_message = '\n'.join(req_message).encode()
 
         resp_message = self._send(req_message)
+        logging.info("Receive of response message:\n%s", resp_message.decode())
         return self._process_response(resp_message)
 
     def _send(self, req_message):
         # Send a request message to the server
-        self._socket.send(req_message)
+        self._socket.sendall(req_message)
 
         # Receive a reponse message from the server.
         # TCP is a stream-based protocol, so the data returned by recv()
@@ -161,8 +161,7 @@ class RTSPClient:
             header_name = header_line[0].strip(':')
             return (header_name, ' '.join(header_line[1:]))
 
-        headers = dict([make_header(line) for line in headers])
-        logging.info("Receive %s", headers)
+        headers = dict(make_header(line) for line in headers)
         return headers, body
 
     def close(self):

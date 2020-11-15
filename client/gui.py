@@ -166,18 +166,18 @@ class Client(tk.Tk):
 
     def _forward_video(self):
         remain = self._video_info['duration'] - self._video_info['progress']
-        if remain < 5:
-            self._video_info['progress'] = self._video_info['duration']
-        else:
+        if remain > 5:
             self._video_info['progress'] += 5
-        self.play(True)
+        else:
+            self._video_info['progress'] = self._video_info['duration']
+        self._play_video(True)
 
     def _backward_video(self):
         if self._video_info['progress'] > 5:
             self._video_info['progress'] -= 5
         else:
             self._video_info['progress'] = 0
-        self.play(True)
+        self._play_video(True)
 
     def _previous_video(self):
         self._video_info['progress'] = 0

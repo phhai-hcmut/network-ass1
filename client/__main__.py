@@ -9,7 +9,7 @@ if __name__ == '__main__':
     parser.add_argument('server_port', type=int)
     parser.add_argument('rtp_port', type=int)
     parser.add_argument('filename')
-    parser.add_argument('--simple', action='store_true', help="Use simple GUI")
+    parser.add_argument('--simple', action='store_true', help="use simple GUI")
     args = vars(parser.parse_args())
 
     logging.basicConfig(

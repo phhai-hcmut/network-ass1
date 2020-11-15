@@ -169,7 +169,7 @@ class ServerWorker(threading.Thread):
         play_range = headers.get('Range', None)
         if play_range is not None:
             begin, _ = play_range.removeprefix('npt=').split('-')
-            self._video_stream.set_time(begin)
+            self._video_stream.set_time(float(begin))
 
         self._rtp_sender.play()
         self._reply_rtsp(RTSPResponse.OK)
@@ -226,8 +226,8 @@ class ServerWorker(threading.Thread):
         resp_msg = '\n'.join(reply).encode()
         if body:
             resp_msg += f'\nContent-Length: {len(body)}\n\n'.encode() + body
-        sent_msg = self._socket.sendall(resp_msg)
-        logging.info("Sent %d out of %d bytes", sent_msg, len(resp_msg))
+        self._socket.sendall(resp_msg)
+        logging.info("Sent reponse message of %d bytes", len(resp_msg))
 
     def _cleanup(self):
         if self._rtp_sender is not None:

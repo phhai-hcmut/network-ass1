@@ -1,4 +1,5 @@
 import io
+import logging
 
 
 class VideoStream:
@@ -59,10 +60,11 @@ class VideoStream:
 
     def set_time(self, time):
         """Seek to frame at specified time"""
-        if time > self.duration:
-            self.frame_num = self._total_frames - 1
-        else:
+        if time < self.duration:
             self.frame_num = round(time * self.frame_rate)
+        else:
+            self.frame_num = self._total_frames - 1
+        logging.info("Seek to frame #%d/%d", self.frame_num, self._total_frames)
 
     def close(self):
         """Close the video stream"""
