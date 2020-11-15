@@ -190,9 +190,11 @@ class ServerWorker(threading.Thread):
             offset = -1 if previous else 1
             self._cur_idx = (self._cur_idx + offset) % len(self.video_files)
             new_filename = self.video_files[self._cur_idx]
-            headers = 'New-Filename: ' + new_filename
+            # Close old video_stream before open new one
+            self._video_stream.close()
             self._video_stream = VideoStream(new_filename)
             self._rtp_sender.video_stream = self._video_stream
+            headers = 'New-Filename: ' + new_filename
             self._reply_rtsp(RTSPResponse.OK, headers)
             self._state = RTSPState.READY
 
