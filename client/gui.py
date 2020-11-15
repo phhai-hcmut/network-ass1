@@ -33,8 +33,8 @@ class Client(tk.Tk):
 
     def _create_widgets(self):
         placeholer_img = ImageTk.BitmapImage(Image.new('1', (384, 288)))
-        self.image_frame = tk.Label(self, image=placeholer_img)
-        self.image_frame.grid(row=0, column=0, columnspan=len(self.PLAYBACK_BUTTONS))
+        self._image_frame = tk.Label(self, image=placeholer_img)
+        self._image_frame.grid(row=0, column=0, columnspan=len(self.PLAYBACK_BUTTONS))
 
         for i, btn_text in enumerate(self.SWITCH_BUTTONS):
             method = '_{}_video'.format(btn_text.replace(" ", '').lower())
@@ -149,10 +149,10 @@ class Client(tk.Tk):
 
     def _show_jpeg(self, video_data):
         self.image = ImageTk.PhotoImage(data=video_data)
-        self.image_frame.configure(image=self.image)
+        self._image_frame.configure(image=self.image)
         # Keep a reference to the image object
-        self.image_frame.update()
-        self.image_frame.image = self.image
+        self._image_frame.update()
+        self._image_frame.image = self.image
 
     def _update_video_info(self):
         self._video_info['progress'] += 1 / self._video_info['frame_rate']
@@ -206,8 +206,8 @@ class SimpleClient(Client):
     def _create_widgets(self):
 
         placeholer_img = ImageTk.BitmapImage(Image.new('1', (384, 288)))
-        self.image_frame = tk.Label(self, image=placeholer_img)
-        self.image_frame.grid(row=0, column=0, columnspan=len(self.CONTROL_BUTTONS))
+        self._image_frame = tk.Label(self, image=placeholer_img)
+        self._image_frame.grid(row=0, column=0, columnspan=len(self.CONTROL_BUTTONS))
 
         for i, btn_text in enumerate(self.CONTROL_BUTTONS):
             method = '_{}_video'.format(btn_text.replace(" ", '').lower())
