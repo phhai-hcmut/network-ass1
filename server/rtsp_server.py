@@ -185,12 +185,12 @@ class ServerWorker(threading.Thread):
         self._reply_rtsp(RTSPResponse.OK)
         self._state = RTSPState.PLAYING
 
-    def _process_next_request(self, request, headers):
+    def _process_next_request(self, filename, headers):
         logging.info("Processing NEXT request")
         self._process_switch_request()
 
-    def _process_previous_request(self, request, headers):
-        logging.info("Processing NEXT request")
+    def _process_previous_request(self, filename, headers):
+        logging.info("Processing PREVIOUS request")
         self._process_switch_request(previous=True)
 
     def _process_switch_request(self, previous=False):
@@ -240,11 +240,11 @@ class ServerWorker(threading.Thread):
         logging.info("Sent %d out of %d bytes", sent_msg, len(resp_msg))
 
     def _cleanup(self):
-        if self._video_stream is not None:
-            self._video_stream.close()
-            self._video_stream = None
-
         if self._rtp_sender is not None:
             self._rtp_sender.close()
             self._rtp_sender.join()
             self._rtp_sender = None
+
+        if self._video_stream is not None:
+            self._video_stream.close()
+            self._video_stream = None

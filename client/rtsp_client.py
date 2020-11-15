@@ -3,7 +3,7 @@ import logging
 import socket
 
 
-RTSPState = Enum('RTSPState', ['INIT', 'READY', 'PLAYING'])
+RTSPState = Enum('RTSPState', ['INIT', 'READY', 'PLAYING', 'SWITCH'])
 
 
 class RTSPClientException(Exception):
@@ -32,24 +32,25 @@ class RTSPClient:
         self.socket.connect(server_addr)
 
         self.state = RTSPState.INIT
-        self.seq_num = 0
-        self.session_id = None
+        self._filename = None
+        self._seqnum = 0
+        self._session_id = None
 
     def describe(self, file_name):
-        self.file_name = file_name
+        self._filename = file_name
         header = 'Accept: application/sdp'
         _, msg = self._request('DESCRIBE', header)
-        self.file_name = None
+        self._filename = None
         return msg
 
     def setup(self, file_name, rtp_port):
         if self.state != RTSPState.INIT:
             raise InvalidMethodError(self.state, 'SETUP')
-        self.file_name = file_name
+        self._filename = file_name
         header = f'Transport: RTP/UDP; client_port= {rtp_port}'
         resp_headers, _ = self._request('SETUP', header)
 
-        self.session_id = resp_headers['Session']
+        self._session_id = resp_headers['Session']
         self.state = RTSPState.READY
         logging.info("RTSP client in state %s", self.state)
 
@@ -63,7 +64,7 @@ class RTSPClient:
                 if end is not None:
                     headers += str(end)
             resp = self._request('PLAY', headers)[0]
-            if int(resp['CSeq']) == self.seq_num and resp['Session'] == self.session_id:
+            if int(resp['CSeq']) == self._seqnum and resp['Session'] == self._session_id:
                 self.state = RTSPState.PLAYING
         logging.info("RTSP client in state %s", self.state)
 
@@ -74,19 +75,19 @@ class RTSPClient:
         if self.state == RTSPState.PLAYING:
             self.pause()
 
-        resp = self._request("PREVIOUS")[0] if previous else self._request("NEXT")[0]
-        if int(resp['CSeq']) == self.seq_num and resp['Session'] == self.session_id:
-            self.file_name = resp['New-Filename']
-            self.state = RTSPState.READY
+        resp = self._request('PREVIOUS')[0] if previous else self._request('NEXT')[0]
+        if int(resp['CSeq']) == self._seqnum:
+            self._filename = resp['New-Filename']
+            self.state = RTSPState.SWITCH
             logging.info("RTSP client in state %s", self.state)
-            return self.file_name
+            return self._filename
 
     def pause(self):
         if self.state == RTSPState.INIT:
             raise InvalidMethodError(self.state, 'PAUSE')
         elif self.state == RTSPState.PLAYING:
             resp = self._request('PAUSE')[0]
-            if int(resp['CSeq']) == self.seq_num and resp['Session'] == self.session_id:
+            if int(resp['CSeq']) == self._seqnum and resp['Session'] == self._session_id:
                 self.state = RTSPState.READY
                 logging.info("RTSP client in state %s", self.state)
                 # return self._parse_npt(resp['Range'])
@@ -94,22 +95,22 @@ class RTSPClient:
     def teardown(self):
         if self.state != RTSPState.INIT:
             resp = self._request('TEARDOWN')[0]
-            if int(resp['CSeq']) == self.seq_num and resp['Session'] == self.session_id:
-                self.session_id = None
+            if int(resp['CSeq']) == self._seqnum and resp['Session'] == self._session_id:
+                self._session_id = None
                 self.state = RTSPState.INIT
         logging.info("RTSP client in state %s", self.state)
 
     def _request(self, method, headers=None):
-        self.seq_num += 1
+        self._seqnum += 1
         req_message = [
             # Request line
-            f'{method} {self.file_name} {self.RTSP_VERSION}',
+            f'{method} {self._filename} {self.RTSP_VERSION}',
             # Sequence number for an RTSP request-response pair
-            f'CSeq: {self.seq_num}',
+            f'CSeq: {self._seqnum}',
         ]
 
         if method not in ['SETUP', 'DESCRIBE']:
-            req_message.append(f'Session: {self.session_id}')
+            req_message.append(f'Session: {self._session_id}')
 
         if headers:
             req_message.append(headers)

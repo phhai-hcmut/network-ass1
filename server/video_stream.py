@@ -4,7 +4,7 @@ import io
 class VideoStream:
     def __init__(self, filename):
         self._file = open(filename, 'rb')
-        self.frame_num = -1
+        self.frame_num = 0
         self._read_frames = []
         self.frame_rate = 20
         self.total_frames = self._count_frames()
@@ -15,14 +15,15 @@ class VideoStream:
             # We reached end of video stream
             return None
 
-        self.frame_num += 1
         if self.frame_num >= len(self._read_frames):
             self._get_frames(self.frame_num - len(self._read_frames) + 1)
 
         if self.frame_num >= len(self._read_frames):
-            return
+            return None
 
-        return self._read_frames[self.frame_num]
+        frame = self._read_frames[self.frame_num]
+        self.frame_num += 1
+        return frame
 
     def _get_frames(self, num=1):
         for _ in range(num):
@@ -69,3 +70,7 @@ class VideoStream:
     def duration(self):
         """Duration of the video stream"""
         return self.total_frames / self.frame_rate
+
+    @property
+    def filename(self):
+        return self._file.name

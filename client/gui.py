@@ -86,7 +86,7 @@ class Client(tk.Tk):
         range_line = next(line for line in message if line.startswith('a=range'))
         _, video_duration = _parse_npt(range_line.removeprefix('a=range:'))
         self._video_duration.set(f"Duration: {video_duration}")
-        self._video_remain.set(f"Remaining: {video_duration:03}")
+        self._video_remain.set(f"Remaining: {int(video_duration)}")
         self._video_info['duration'] = video_duration
 
         framerate_line = next(
@@ -178,11 +178,13 @@ class Client(tk.Tk):
         self._video_info['progress'] = 0
         self._video_info['filename'] = self._rtsp_client.switch(previous=True)
         self._filename.set(self._video_info['filename'])
+        self._get_video_info()
 
     def next(self):
         self._video_info['progress'] = 0
         self._video_info['filename'] = self._rtsp_client.switch()
         self._filename.set(self._video_info['filename'])
+        self._get_video_info()
 
     def cleanup(self):
         logging.info("Cleaning resources before exiting application...")
