@@ -8,14 +8,11 @@ from .rtp_sender import RTPSender, RTP_PT_JPEG
 from .video_stream import VideoStream
 
 
-def _parse_npt(string):
-    begin, end = string.removeprefix('npt=').split('-')
-    begin = float(begin)
-    if end:
-        end = float(end)
-    else:
-        end = None
-    return begin, end
+def _make_ntp_timestamp():
+    from datetime import datetime
+    diff = datetime.utcnow() - datetime(1900, 1, 1, 0, 0, 0)
+    timestamp = diff.days * 24 * 60 * 60 + diff.seconds
+    return timestamp
 
 
 def start_server(listen_port, listen_addr='', video_files=None):
@@ -47,7 +44,7 @@ class ServerWorker(threading.Thread):
 
     def __init__(self, rtsp_socket, video_files):
         super().__init__()
-        self.socket = rtsp_socket
+        self._socket = rtsp_socket
         self._state = RTSPState.INIT
         self.video_files = video_files
         self._cur_idx = None
@@ -59,12 +56,12 @@ class ServerWorker(threading.Thread):
     @property
     def client_addr(self):
         """The address of connected client"""
-        return self.socket.getpeername()
+        return self._socket.getpeername()
 
     def run(self):
         """Receive RTSP request from the client."""
         while True:
-            data = self.socket.recv(1024)
+            data = self._socket.recv(1024)
             if data:
                 logging.info("Data received:\n%s", data.decode())
                 self._process_rtsp_request(data)
@@ -93,7 +90,7 @@ class ServerWorker(threading.Thread):
         # Get the RTSP sequence number
         self._seqnum = int(headers['CSeq'])
 
-        getattr(self, '_process_' + request_method.lower() + '_request')(filename, headers)
+        getattr(self, f'_process_{request_method.lower()}_request')(filename, headers)
 
     def _process_describe_request(self, filename, headers):
         logging.info("Processing DESCRIBE request")
@@ -106,24 +103,17 @@ class ServerWorker(threading.Thread):
         body = '\n'.join([
             'v=0',
             'o=- {0} {0} IN IP4 {1}'.format(
-                self._make_ntp_timestamp(), self.client_addr[0]
+                _make_ntp_timestamp(), self.client_addr[0]
             ),
             's=RTSP Session',
             f'm=video 0 RTP/AVP {RTP_PT_JPEG}',
-            f'a=rtpmap:{RTP_PT_JPEG} mjpeg/',
+            f'a=rtpmap:{RTP_PT_JPEG} mjpeg',
             f'a=framerate:{video_stream.frame_rate}',
             f'a=range:npt=0-{video_stream.duration}',
         ]).encode()
         headers = 'Content-Type: application/sdp'
         self._reply_rtsp(RTSPResponse.OK, headers, body)
         video_stream.close()
-
-    @staticmethod
-    def _make_ntp_timestamp():
-        from datetime import datetime
-        diff = datetime.utcnow() - datetime(1900, 1, 1, 0, 0, 0)
-        timestamp = diff.days * 24 * 60 * 60 + diff.seconds
-        return timestamp
 
     def _process_setup_request(self, filename, headers):
         logging.info("Processing SETUP request")
@@ -178,7 +168,7 @@ class ServerWorker(threading.Thread):
 
         play_range = headers.get('Range', None)
         if play_range is not None:
-            begin, _ = _parse_npt(play_range)
+            begin, _ = play_range.removeprefix('npt=').split('-')
             self._video_stream.set_time(begin)
 
         self._rtp_sender.play()
@@ -236,7 +226,7 @@ class ServerWorker(threading.Thread):
         resp_msg = '\n'.join(reply).encode()
         if body:
             resp_msg += f'\nContent-Length: {len(body)}\n\n'.encode() + body
-        sent_msg = self.socket.send(resp_msg)
+        sent_msg = self._socket.sendall(resp_msg)
         logging.info("Sent %d out of %d bytes", sent_msg, len(resp_msg))
 
     def _cleanup(self):

@@ -2,16 +2,17 @@ import io
 
 
 class VideoStream:
+    """Helper class to read MJPEG video stream"""
     def __init__(self, filename):
         self._file = open(filename, 'rb')
         self.frame_num = 0
-        self._read_frames = []
         self.frame_rate = 20
-        self.total_frames = self._count_frames()
+        self._read_frames = []
+        self._total_frames = self._count_frames()
 
     def read(self):
         """Read a frame"""
-        if self.frame_num >= self.total_frames:
+        if self.frame_num >= self._total_frames:
             # We reached end of video stream
             return None
 
@@ -57,8 +58,9 @@ class VideoStream:
         return count
 
     def set_time(self, time):
+        """Seek to frame at specified time"""
         if time > self.duration:
-            self.frame_num = self.total_frames - 1
+            self.frame_num = self._total_frames - 1
         else:
             self.frame_num = round(time * self.frame_rate)
 
@@ -69,8 +71,4 @@ class VideoStream:
     @property
     def duration(self):
         """Duration of the video stream"""
-        return self.total_frames / self.frame_rate
-
-    @property
-    def filename(self):
-        return self._file.name
+        return self._total_frames / self.frame_rate

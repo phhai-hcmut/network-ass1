@@ -1,8 +1,7 @@
 import logging
+import socket
 import threading
 import time
-import socket
-
 
 RTP_PT_JPEG = 26
 
@@ -22,31 +21,27 @@ class RTPSender(threading.Thread):
         self.recv_addr = recv_addr
         self.video_stream = video_stream
         self.is_playing = threading.Event()
-        self._closed = False
+        self.closed = False
 
     def run(self):
-        while self.is_playing.wait() and not self._closed:
+        while self.is_playing.wait() and not self.closed:
             data = self.video_stream.read()
             if data:
-                packet = self.make_rtp(data, self.video_stream.frame_num)
+                packet = self._make_rtp_packet(data, self.video_stream.frame_num)
                 try:
+                    self._socket.sendto(packet, self.recv_addr)
+                except socket.error as err:
+                    logging.warning(err)
+                else:
                     logging.debug(
                         "Send frame #%d of %d bytes to %s:%d",
                         self.video_stream.frame_num, len(packet), *self.recv_addr
                     )
-                    self._socket.sendto(packet, self.recv_addr)
-                except socket.error as err:
-                    logging.warning(err)
-                    print("Connection Error")
-            # else:
-            #     # Reach end of stream
-            #     self.pause()
-            #     continue
             time.sleep(1 / self.video_stream.frame_rate)
 
         self._socket.close()
 
-    def make_rtp(self, payload, seqnum):
+    def _make_rtp_packet(self, payload, seqnum):
         """RTP-packetize the video data."""
         # Get timestamp in microsecond
         timestamp = round(time.monotonic() * 1000)
@@ -74,5 +69,5 @@ class RTPSender(threading.Thread):
 
     def close(self):
         """Stop the RTP sender"""
-        self._closed = True
+        self.closed = True
         self.is_playing.set()
