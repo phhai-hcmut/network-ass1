@@ -37,7 +37,7 @@ class RTPReceiver:
 
     def close(self):
         if self.data:
-            with open('stats2.csv', 'w') as f:
+            with open('stats.csv', 'w') as f:
                 f.write('time,size\n')
                 start_time = self.data[0][0]
                 for ptime, size in self.data:

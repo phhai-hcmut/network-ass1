@@ -72,8 +72,8 @@ class RTSPClient:
         logging.info("RTSP client in state %s", self._state)
 
     def switch(self, previous=False):
-        # if self._state == RTSPState.INIT:
-        #     raise InvalidMethodError(self._state, 'SWITCH')
+        if self._state == RTSPState.INIT:
+            raise InvalidMethodError(self._state, 'SWITCH')
 
         if self._state == RTSPState.PLAYING:
             self.pause()
