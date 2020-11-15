@@ -102,7 +102,7 @@ class Client(tk.Tk):
             describe_frame = tk.Label(
                 self, text=message, background='white', justify='left'
             )
-            describe_frame.grid(row=4, column=0, columnspan=len(self.PLAYBACK_BUTTONS))
+            describe_frame.grid(row=6, column=0, columnspan=len(self.PLAYBACK_BUTTONS))
 
     def setup(self):
         self._rtsp_client.setup(self._video_info['filename'], self.rtp_port)
