@@ -210,13 +210,9 @@ class Client2(Client):
                 self, text=btn_text, command=getattr(self, method), height=2, width=10
             )
             button.grid(row=2, column=i)
-        self._video_duration = tk.StringVar()
-        label = tk.Label(self, textvariable=self._video_duration, background='white')
-        label.grid(row=1, column=2)
-
-        self._video_remain = tk.StringVar()
-        label = tk.Label(self, textvariable=self._video_remain, background='white')
-        label.grid(row=1, column=0)
+    
+    #NOTE: have to pass this function cause it uses some attributes not available in this client version.
+    def _get_video_info(self): pass
 
     def play(self):
         try:
