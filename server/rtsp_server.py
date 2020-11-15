@@ -4,7 +4,7 @@ from random import randint
 import socket
 import threading
 
-from .rtp_sender import RTPSender, MJPEG_TYPE
+from .rtp_sender import RTPSender, RTP_PT_JPEG
 from .video_stream import VideoStream
 
 
@@ -109,8 +109,8 @@ class ServerWorker(threading.Thread):
                 self._make_ntp_timestamp(), self.client_addr[0]
             ),
             's=RTSP Session',
-            f'm=video 0 RTP/AVP {MJPEG_TYPE}',
-            f'a=rtpmap:{MJPEG_TYPE} mjpeg/',
+            f'm=video 0 RTP/AVP {RTP_PT_JPEG}',
+            f'a=rtpmap:{RTP_PT_JPEG} mjpeg/',
             f'a=framerate:{video_stream.frame_rate}',
             f'a=range:npt=0-{video_stream.duration}',
         ]).encode()

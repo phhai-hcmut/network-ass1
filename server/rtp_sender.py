@@ -4,7 +4,7 @@ import time
 import socket
 
 
-MJPEG_TYPE = 26
+RTP_PT_JPEG = 26
 
 
 class RTPSender(threading.Thread):
@@ -13,7 +13,6 @@ class RTPSender(threading.Thread):
     EXTENSION = 0
     CC = 0
     MARKER = 0
-    PT = 26  # MJPEG type
     SSRC = 0
 
     def __init__(self, recv_addr, video_stream):
@@ -23,17 +22,10 @@ class RTPSender(threading.Thread):
         self.recv_addr = recv_addr
         self.video_stream = video_stream
         self.is_playing = threading.Event()
-        self.closed = False
+        self._closed = False
 
     def run(self):
-        while True:
-            if not self.closed:
-                if not self.is_playing.wait(1 / self.video_stream.frame_rate):
-                    continue
-            else:
-                self._socket.close()
-                return
-
+        while self.is_playing.wait() and not self._closed:
             data = self.video_stream.read()
             if data:
                 packet = self.make_rtp(data, self.video_stream.frame_num)
@@ -52,18 +44,27 @@ class RTPSender(threading.Thread):
             #     continue
             time.sleep(1 / self.video_stream.frame_rate)
 
-    def make_rtp(self, payload, framenum):
-        """RTP-packetize the video data."""
-        version = 2
-        padding = 0
-        extension = 0
-        cc = 0
-        marker = 0
-        pt = 26  # MJPEG type
-        seqnum = framenum
-        ssrc = 0
+        self._socket.close()
 
-        return self.encode_rtp_packet(version, padding, extension, cc, seqnum, marker, pt, ssrc, payload)
+    def make_rtp(self, payload, seqnum):
+        """RTP-packetize the video data."""
+        # Get timestamp in microsecond
+        timestamp = round(time.monotonic() * 1000)
+        headers = bytes([
+            self.VERSION << 6 | self.PADDING << 5 | self.EXTENSION << 4 | self.CC,
+            self.MARKER << 7 | RTP_PT_JPEG,
+            (seqnum >> 8) & 0xFF,
+            seqnum & 0xFF,
+            (timestamp >> 24) & 0xFF,
+            (timestamp >> 16) & 0xFF,
+            (timestamp >> 8) & 0xFF,
+            timestamp & 0xFF,
+            (self.SSRC >> 24) & 0xFF,
+            (self.SSRC >> 16) & 0xFF,
+            (self.SSRC >> 8) & 0xFF,
+            self.SSRC & 0xFF,
+        ])
+        return headers + payload
 
     def play(self):
         self.is_playing.set()
@@ -71,26 +72,7 @@ class RTPSender(threading.Thread):
     def pause(self):
         self.is_playing.clear()
 
-    @staticmethod
-    def encode_rtp_packet(version, padding, extension, cc, seqnum, marker, pt, ssrc, payload):
-        # Get timestamp in microsecond
-        timestamp = round(time.monotonic() * 1000)
-        headers = bytes([
-            version << 6 | padding << 5 | extension << 4 | cc,
-            marker << 7 | pt,
-            (seqnum >> 8) & 0xFF,
-            seqnum & 0xFF,
-            (timestamp >> 24) & 0xFF,
-            (timestamp >> 16) & 0xFF,
-            (timestamp >> 8) & 0xFF,
-            timestamp & 0xFF,
-            (ssrc >> 24) & 0xFF,
-            (ssrc >> 16) & 0xFF,
-            (ssrc >> 8) & 0xFF,
-            ssrc & 0xFF,
-        ])
-        return headers + payload
-
     def close(self):
         """Stop the RTP sender"""
-        self.closed = True
+        self._closed = True
+        self.is_playing.set()
