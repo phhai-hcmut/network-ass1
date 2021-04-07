@@ -1,5 +1,7 @@
 Streaming MJPEG over RTSP/TCP and RTP/UDP
 
+Report: [Computer_Network_Assignment_1.pdf](Computer_Network_Assignment_1.pdf)
+
 # Server
 
 To start the server, run the following command:
